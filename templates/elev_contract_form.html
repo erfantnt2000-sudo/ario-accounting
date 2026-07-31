@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}قرارداد جدید{% endblock %}
+{% block page_title %}<strong>ثبت قرارداد سرویس</strong>{% endblock %}
+{% block content %}
+<div class="card" style="max-width:700px;">
+<form method="post">
+<div class="form-row">
+<div class="form-group"><label>شماره قرارداد *</label><input name="contract_no" class="form-control" required></div>
+<div class="form-group"><label>مشتری</label>
+<select name="party_id" class="form-control"><option value="">—</option>{% for p in parties %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>ساختمان</label>
+<select name="building_id" class="form-control"><option value="">—</option>{% for b in buildings %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}</select></div>
+<div class="form-group"><label>آسانسور</label>
+<select name="elevator_id" class="form-control"><option value="">—</option>{% for e in elevators %}<option value="{{ e.id }}">{{ e.code }} — {{ e.name or '' }}</option>{% endfor %}</select></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>شروع *</label><input name="start_date" class="form-control" value="{{ today }}" required></div>
+<div class="form-group"><label>پایان *</label><input name="end_date" class="form-control" required placeholder="1404/12/29"></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>مبلغ قرارداد</label><input type="number" name="amount" class="form-control" value="0"></div>
+<div class="form-group"><label>بازدید در ماه</label><input type="number" name="visit_per_month" class="form-control" value="1"></div>
+<div class="form-group"><label>نوع پرداخت</label>
+<select name="payment_type" class="form-control"><option value="monthly">ماهانه</option><option value="yearly">سالانه</option><option value="quarterly">فصلی</option></select></div>
+</div>
+<div class="form-group"><label>توضیحات</label><textarea name="description" class="form-control" rows="2"></textarea></div>
+<button class="btn btn-primary">ذخیره</button>
+<a href="{{ url_for('elev_contracts') }}" class="btn btn-secondary">انصراف</a>
+</form></div>
+{% endblock %}

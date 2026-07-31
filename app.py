@@ -11,6 +11,7 @@ from datetime import datetime
 from functools import wraps
 import jdatetime
 from database import init_db, get_connection, get_next_voucher_no, today_jalali, current_month_jalali, DB_PATH
+from elevator_models import init_elevator_tables, seed_elevator_sample
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "ario-accounting-secret-key-2026-change-me")
@@ -19,6 +20,8 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 # Create tables on startup (important for gunicorn / Render)
 try:
     init_db()
+    init_elevator_tables()
+    seed_elevator_sample()
 except Exception as _e:
     print("init_db warning:", _e)
 
@@ -682,8 +685,359 @@ def payment_add():
     return redirect(url_for("payments_list"))
 
 
+
+# ==================== مدیریت سرویس آسانسور ====================
+
+@app.route("/elevators/dashboard")
+@login_required
+def elev_dashboard():
+    """داشبورد مدیر: قراردادهای رو به پایان، بدهی، سرویس عقب‌افتاده"""
+    conn = get_connection()
+    today = today_jalali()
+    # contracts ending in 30 days (string compare works for YYYY/MM/DD jalali roughly)
+    expiring = conn.execute("""
+        SELECT c.*, p.name as customer_name, b.name as building_name, e.code as elev_code
+        FROM contracts c
+        LEFT JOIN parties p ON p.id=c.party_id
+        LEFT JOIN buildings b ON b.id=c.building_id
+        LEFT JOIN elevators e ON e.id=c.elevator_id
+        WHERE c.status='active' AND c.end_date >= ? 
+        ORDER BY c.end_date LIMIT 20
+    """, (today,)).fetchall()
+    overdue_visits = conn.execute("""
+        SELECT v.*, e.code as elev_code, e.name as elev_name, t.name as tech_name
+        FROM service_visits v
+        LEFT JOIN elevators e ON e.id=v.elevator_id
+        LEFT JOIN technicians t ON t.id=v.technician_id
+        WHERE v.status='planned' AND v.planned_date < ?
+        ORDER BY v.planned_date LIMIT 30
+    """, (today,)).fetchall()
+    open_faults = conn.execute("""
+        SELECT f.*, e.code as elev_code, e.name as elev_name
+        FROM faults f
+        LEFT JOIN elevators e ON e.id=f.elevator_id
+        WHERE f.status IN ('open','dispatched')
+        ORDER BY f.report_date DESC LIMIT 20
+    """).fetchall()
+    stats = {
+        "complexes": conn.execute("SELECT COUNT(*) FROM complexes").fetchone()[0],
+        "buildings": conn.execute("SELECT COUNT(*) FROM buildings").fetchone()[0],
+        "elevators": conn.execute("SELECT COUNT(*) FROM elevators").fetchone()[0],
+        "contracts": conn.execute("SELECT COUNT(*) FROM contracts WHERE status='active'").fetchone()[0],
+        "open_faults": conn.execute("SELECT COUNT(*) FROM faults WHERE status IN ('open','dispatched')").fetchone()[0],
+        "overdue": len(overdue_visits),
+    }
+    conn.close()
+    return render_template("elev_dashboard.html", stats=stats, expiring=expiring,
+                           overdue_visits=overdue_visits, open_faults=open_faults, today=today)
+
+@app.route("/elevators/complexes")
+@login_required
+def elev_complexes():
+    conn = get_connection()
+    rows = conn.execute("SELECT * FROM complexes ORDER BY name").fetchall()
+    conn.close()
+    return render_template("elev_complexes.html", rows=rows, today=today_jalali())
+
+@app.route("/elevators/complexes/add", methods=["GET", "POST"])
+@login_required
+def elev_complex_add():
+    if request.method == "POST":
+        conn = get_connection()
+        conn.execute(
+            "INSERT INTO complexes (code,name,address,city,manager_name,manager_phone,notes,created_at) VALUES (?,?,?,?,?,?,?,?)",
+            (request.form.get("code"), request.form.get("name"), request.form.get("address"),
+             request.form.get("city"), request.form.get("manager_name"), request.form.get("manager_phone"),
+             request.form.get("notes"), datetime.now().isoformat())
+        )
+        conn.commit(); conn.close()
+        flash("مجتمع ثبت شد.", "success")
+        return redirect(url_for("elev_complexes"))
+    return render_template("elev_complex_form.html", row=None, today=today_jalali())
+
+@app.route("/elevators/buildings")
+@login_required
+def elev_buildings():
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT b.*, c.name as complex_name, p.name as customer_name
+        FROM buildings b
+        LEFT JOIN complexes c ON c.id=b.complex_id
+        LEFT JOIN parties p ON p.id=b.party_id
+        ORDER BY b.name
+    """).fetchall()
+    conn.close()
+    return render_template("elev_buildings.html", rows=rows, today=today_jalali())
+
+@app.route("/elevators/buildings/add", methods=["GET", "POST"])
+@login_required
+def elev_building_add():
+    conn = get_connection()
+    if request.method == "POST":
+        conn.execute(
+            "INSERT INTO buildings (complex_id,code,name,address,floors,units,party_id,notes,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (request.form.get("complex_id") or None, request.form.get("code"), request.form.get("name"),
+             request.form.get("address"), int(request.form.get("floors") or 0), int(request.form.get("units") or 0),
+             request.form.get("party_id") or None, request.form.get("notes"), datetime.now().isoformat())
+        )
+        conn.commit(); conn.close()
+        flash("ساختمان ثبت شد.", "success")
+        return redirect(url_for("elev_buildings"))
+    complexes = conn.execute("SELECT id,name FROM complexes ORDER BY name").fetchall()
+    parties = conn.execute("SELECT id,name FROM parties WHERE party_type IN ('customer','both')").fetchall()
+    conn.close()
+    return render_template("elev_building_form.html", complexes=complexes, parties=parties, today=today_jalali())
+
+@app.route("/elevators/list")
+@login_required
+def elev_list():
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT e.*, b.name as building_name, c.name as complex_name
+        FROM elevators e
+        LEFT JOIN buildings b ON b.id=e.building_id
+        LEFT JOIN complexes c ON c.id=b.complex_id
+        ORDER BY e.code
+    """).fetchall()
+    conn.close()
+    return render_template("elev_list.html", rows=rows, today=today_jalali())
+
+@app.route("/elevators/add", methods=["GET", "POST"])
+@login_required
+def elev_add():
+    conn = get_connection()
+    if request.method == "POST":
+        conn.execute(
+            """INSERT INTO elevators (building_id,code,name,brand,model,capacity,stops,drive_type,door_type,status,notes,created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (request.form.get("building_id"), request.form.get("code"), request.form.get("name"),
+             request.form.get("brand"), request.form.get("model"), request.form.get("capacity"),
+             int(request.form.get("stops") or 0), request.form.get("drive_type"), request.form.get("door_type"),
+             request.form.get("status") or "active", request.form.get("notes"), datetime.now().isoformat())
+        )
+        conn.commit(); conn.close()
+        flash("پرونده آسانسور ثبت شد.", "success")
+        return redirect(url_for("elev_list"))
+    buildings = conn.execute("SELECT id,name FROM buildings ORDER BY name").fetchall()
+    conn.close()
+    return render_template("elev_form.html", buildings=buildings, today=today_jalali())
+
+@app.route("/elevators/contracts")
+@login_required
+def elev_contracts():
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT c.*, p.name as customer_name, b.name as building_name, e.code as elev_code
+        FROM contracts c
+        LEFT JOIN parties p ON p.id=c.party_id
+        LEFT JOIN buildings b ON b.id=c.building_id
+        LEFT JOIN elevators e ON e.id=c.elevator_id
+        ORDER BY c.end_date
+    """).fetchall()
+    conn.close()
+    return render_template("elev_contracts.html", rows=rows, today=today_jalali())
+
+@app.route("/elevators/contracts/add", methods=["GET", "POST"])
+@login_required
+def elev_contract_add():
+    conn = get_connection()
+    if request.method == "POST":
+        conn.execute(
+            """INSERT INTO contracts (contract_no,party_id,building_id,elevator_id,start_date,end_date,amount,visit_per_month,payment_type,status,description,created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (request.form.get("contract_no"), request.form.get("party_id") or None,
+             request.form.get("building_id") or None, request.form.get("elevator_id") or None,
+             request.form.get("start_date"), request.form.get("end_date"),
+             float(request.form.get("amount") or 0), int(request.form.get("visit_per_month") or 1),
+             request.form.get("payment_type") or "monthly", "active",
+             request.form.get("description"), datetime.now().isoformat())
+        )
+        conn.commit(); conn.close()
+        flash("قرارداد ثبت شد.", "success")
+        return redirect(url_for("elev_contracts"))
+    parties = conn.execute("SELECT id,name FROM parties WHERE party_type IN ('customer','both')").fetchall()
+    buildings = conn.execute("SELECT id,name FROM buildings").fetchall()
+    elevators = conn.execute("SELECT id,code,name FROM elevators").fetchall()
+    conn.close()
+    return render_template("elev_contract_form.html", parties=parties, buildings=buildings, elevators=elevators, today=today_jalali())
+
+@app.route("/elevators/visits")
+@login_required
+def elev_visits():
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT v.*, e.code as elev_code, e.name as elev_name, t.name as tech_name
+        FROM service_visits v
+        LEFT JOIN elevators e ON e.id=v.elevator_id
+        LEFT JOIN technicians t ON t.id=v.technician_id
+        ORDER BY v.planned_date DESC LIMIT 100
+    """).fetchall()
+    techs = conn.execute("SELECT id,name FROM technicians WHERE is_active=1").fetchall()
+    elevators = conn.execute("SELECT id,code,name FROM elevators").fetchall()
+    contracts = conn.execute("SELECT id,contract_no FROM contracts WHERE status='active'").fetchall()
+    conn.close()
+    return render_template("elev_visits.html", rows=rows, techs=techs, elevators=elevators, contracts=contracts, today=today_jalali())
+
+@app.route("/elevators/visits/add", methods=["POST"])
+@login_required
+def elev_visit_add():
+    conn = get_connection()
+    conn.execute(
+        """INSERT INTO service_visits (contract_id,elevator_id,technician_id,planned_date,visit_type,status,created_at)
+           VALUES (?,?,?,?,?,?,?)""",
+        (request.form.get("contract_id") or None, request.form.get("elevator_id"),
+         request.form.get("technician_id") or None, request.form.get("planned_date") or today_jalali(),
+         request.form.get("visit_type") or "periodic", "planned", datetime.now().isoformat())
+    )
+    conn.commit(); conn.close()
+    flash("بازدید برنامه‌ریزی شد.", "success")
+    return redirect(url_for("elev_visits"))
+
+@app.route("/elevators/visits/done/<int:vid>", methods=["POST"])
+@login_required
+def elev_visit_done(vid):
+    conn = get_connection()
+    conn.execute(
+        "UPDATE service_visits SET status='done', visit_date=?, report_text=?, customer_sign=? WHERE id=?",
+        (request.form.get("visit_date") or today_jalali(), request.form.get("report_text"),
+         request.form.get("customer_sign"), vid)
+    )
+    conn.commit(); conn.close()
+    flash("گزارش بازدید ثبت شد.", "success")
+    return redirect(url_for("elev_visits"))
+
+@app.route("/elevators/faults")
+@login_required
+def elev_faults():
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT f.*, e.code as elev_code, e.name as elev_name, t.name as tech_name
+        FROM faults f
+        LEFT JOIN elevators e ON e.id=f.elevator_id
+        LEFT JOIN technicians t ON t.id=f.technician_id
+        ORDER BY f.id DESC LIMIT 100
+    """).fetchall()
+    elevators = conn.execute("SELECT id,code,name FROM elevators").fetchall()
+    techs = conn.execute("SELECT id,name FROM technicians WHERE is_active=1").fetchall()
+    conn.close()
+    return render_template("elev_faults.html", rows=rows, elevators=elevators, techs=techs, today=today_jalali())
+
+@app.route("/elevators/faults/add", methods=["POST"])
+@login_required
+def elev_fault_add():
+    conn = get_connection()
+    conn.execute(
+        """INSERT INTO faults (elevator_id,report_date,report_time,reporter_name,reporter_phone,description,priority,status,created_at)
+           VALUES (?,?,?,?,?,?,?,?,?)""",
+        (request.form.get("elevator_id"), request.form.get("report_date") or today_jalali(),
+         request.form.get("report_time"), request.form.get("reporter_name"), request.form.get("reporter_phone"),
+         request.form.get("description"), request.form.get("priority") or "normal", "open", datetime.now().isoformat())
+    )
+    conn.commit(); conn.close()
+    flash("خرابی ثبت شد.", "success")
+    return redirect(url_for("elev_faults"))
+
+@app.route("/elevators/faults/dispatch/<int:fid>", methods=["POST"])
+@login_required
+def elev_fault_dispatch(fid):
+    conn = get_connection()
+    conn.execute(
+        "UPDATE faults SET status='dispatched', technician_id=?, dispatch_date=? WHERE id=?",
+        (request.form.get("technician_id"), today_jalali(), fid)
+    )
+    conn.commit(); conn.close()
+    flash("سرویس‌کار اعزام شد.", "success")
+    return redirect(url_for("elev_faults"))
+
+@app.route("/elevators/faults/close/<int:fid>", methods=["POST"])
+@login_required
+def elev_fault_close(fid):
+    conn = get_connection()
+    conn.execute(
+        "UPDATE faults SET status='closed', close_date=?, close_report=? WHERE id=?",
+        (today_jalali(), request.form.get("close_report"), fid)
+    )
+    # optional repair record
+    elev = conn.execute("SELECT elevator_id FROM faults WHERE id=?", (fid,)).fetchone()
+    if elev and request.form.get("create_repair"):
+        labor = float(request.form.get("labor_cost") or 0)
+        parts = float(request.form.get("parts_cost") or 0)
+        conn.execute(
+            """INSERT INTO repairs (fault_id,elevator_id,repair_date,technician_id,description,labor_cost,parts_cost,total_cost,created_at)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (fid, elev["elevator_id"], today_jalali(), request.form.get("technician_id") or None,
+             request.form.get("close_report"), labor, parts, labor+parts, datetime.now().isoformat())
+        )
+    conn.commit(); conn.close()
+    flash("خرابی بسته شد.", "success")
+    return redirect(url_for("elev_faults"))
+
+@app.route("/elevators/repairs")
+@login_required
+def elev_repairs():
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT r.*, e.code as elev_code, t.name as tech_name
+        FROM repairs r
+        LEFT JOIN elevators e ON e.id=r.elevator_id
+        LEFT JOIN technicians t ON t.id=r.technician_id
+        ORDER BY r.repair_date DESC
+    """).fetchall()
+    conn.close()
+    return render_template("elev_repairs.html", rows=rows, today=today_jalali())
+
+@app.route("/elevators/technicians")
+@login_required
+def elev_technicians():
+    conn = get_connection()
+    rows = conn.execute("SELECT * FROM technicians ORDER BY name").fetchall()
+    conn.close()
+    return render_template("elev_technicians.html", rows=rows, today=today_jalali())
+
+@app.route("/elevators/technicians/add", methods=["POST"])
+@login_required
+def elev_tech_add():
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO technicians (code,name,phone,skill,created_at) VALUES (?,?,?,?,?)",
+        (request.form.get("code"), request.form.get("name"), request.form.get("phone"),
+         request.form.get("skill"), datetime.now().isoformat())
+    )
+    conn.commit(); conn.close()
+    flash("سرویس‌کار ثبت شد.", "success")
+    return redirect(url_for("elev_technicians"))
+
+@app.route("/elevators/profit")
+@login_required
+def elev_profit():
+    """گزارش سود تقریبی هر قرارداد / ساختمان"""
+    conn = get_connection()
+    by_contract = conn.execute("""
+        SELECT c.contract_no, c.amount as contract_amount, p.name as customer_name, b.name as building_name,
+               COALESCE((SELECT SUM(total_cost) FROM repairs r WHERE r.elevator_id=c.elevator_id),0) as repair_cost,
+               COALESCE((SELECT SUM(amount) FROM service_visits v WHERE v.contract_id=c.id AND v.status='done'),0) as visit_income
+        FROM contracts c
+        LEFT JOIN parties p ON p.id=c.party_id
+        LEFT JOIN buildings b ON b.id=c.building_id
+        ORDER BY c.id DESC
+    """).fetchall()
+    by_building = conn.execute("""
+        SELECT b.name as building_name,
+               COALESCE(SUM(c.amount),0) as contract_sum,
+               COALESCE((SELECT SUM(r.total_cost) FROM repairs r
+                         JOIN elevators e2 ON e2.id=r.elevator_id WHERE e2.building_id=b.id),0) as repair_sum
+        FROM buildings b
+        LEFT JOIN contracts c ON c.building_id=b.id
+        GROUP BY b.id
+    """).fetchall()
+    conn.close()
+    return render_template("elev_profit.html", by_contract=by_contract, by_building=by_building, today=today_jalali())
+
+
 if __name__ == "__main__":
     init_db()
+    init_elevator_tables()
+    seed_elevator_sample()
     port = int(os.environ.get("PORT", 5000))
     print("=" * 50)
     print("  Ario Accounting - Online Ready")

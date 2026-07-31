@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}پرونده آسانسور{% endblock %}
+{% block page_title %}<strong>ثبت پرونده آسانسور</strong>{% endblock %}
+{% block content %}
+<div class="card" style="max-width:700px;">
+<form method="post">
+<div class="form-group"><label>ساختمان *</label>
+<select name="building_id" class="form-control" required>
+<option value="">— انتخاب —</option>
+{% for b in buildings %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+</select></div>
+<div class="form-row">
+<div class="form-group"><label>کد *</label><input name="code" class="form-control" required placeholder="EL-001"></div>
+<div class="form-group"><label>نام</label><input name="name" class="form-control"></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>برند</label><input name="brand" class="form-control"></div>
+<div class="form-group"><label>مدل</label><input name="model" class="form-control"></div>
+<div class="form-group"><label>ظرفیت</label><input name="capacity" class="form-control" placeholder="8 نفر"></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>تعداد توقف</label><input type="number" name="stops" class="form-control" value="0"></div>
+<div class="form-group"><label>نوع درایو</label><input name="drive_type" class="form-control"></div>
+<div class="form-group"><label>نوع درب</label><input name="door_type" class="form-control"></div>
+</div>
+<div class="form-group"><label>یادداشت</label><textarea name="notes" class="form-control" rows="2"></textarea></div>
+<button class="btn btn-primary">ذخیره</button>
+<a href="{{ url_for('elev_list') }}" class="btn btn-secondary">انصراف</a>
+</form></div>
+{% endblock %}

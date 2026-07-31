@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}تاریخچه تعمیرات{% endblock %}
+{% block page_title %}<strong>تاریخچه تعمیرات و هزینه قطعات</strong>{% endblock %}
+{% block content %}
+<div class="card">
+<table>
+<thead><tr><th>تاریخ</th><th>آسانسور</th><th>سرویس‌کار</th><th>شرح</th><th>اجرت</th><th>قطعات</th><th>جمع</th></tr></thead>
+<tbody>
+{% for r in rows %}
+<tr>
+<td>{{ r.repair_date }}</td>
+<td>{{ r.elev_code }}</td>
+<td>{{ r.tech_name or '—' }}</td>
+<td>{{ r.description or '—' }}</td>
+<td class="text-left">{{ "{:,.0f}".format(r.labor_cost or 0) }}</td>
+<td class="text-left">{{ "{:,.0f}".format(r.parts_cost or 0) }}</td>
+<td class="text-left"><strong>{{ "{:,.0f}".format(r.total_cost or 0) }}</strong></td>
+</tr>
+{% else %}<tr><td colspan="7" style="text-align:center;">تعمیری ثبت نشده</td></tr>{% endfor %}
+</tbody></table>
+</div>
+{% endblock %}

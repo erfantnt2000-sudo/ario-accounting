@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}ساختمان‌ها{% endblock %}
+{% block page_title %}<strong>ساختمان‌ها</strong>{% endblock %}
+{% block content %}
+<div class="card">
+<div style="display:flex;justify-content:space-between;margin-bottom:12px;"><h2 style="margin:0;">فهرست ساختمان</h2>
+<a href="{{ url_for('elev_building_add') }}" class="btn btn-primary">+ ساختمان</a></div>
+<table><thead><tr><th>کد</th><th>نام</th><th>مجتمع</th><th>مشتری</th><th>طبقات</th><th>واحد</th></tr></thead>
+<tbody>{% for r in rows %}<tr><td>{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.complex_name or '—' }}</td><td>{{ r.customer_name or '—' }}</td><td>{{ r.floors }}</td><td>{{ r.units }}</td></tr>{% else %}<tr><td colspan="6" style="text-align:center;">خالی</td></tr>{% endfor %}</tbody></table>
+</div>
+{% endblock %}

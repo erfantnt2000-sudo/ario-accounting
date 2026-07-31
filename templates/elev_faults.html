@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}خرابی و اعزام{% endblock %}
+{% block page_title %}<strong>ثبت خرابی و اعزام سرویس‌کار</strong>{% endblock %}
+{% block content %}
+<div class="card">
+<h3>ثبت خرابی جدید</h3>
+<form method="post" action="{{ url_for('elev_fault_add') }}" class="form-row" style="align-items:end;">
+<div class="form-group"><label>آسانسور *</label>
+<select name="elevator_id" class="form-control" required>
+<option value="">—</option>{% for e in elevators %}<option value="{{ e.id }}">{{ e.code }} — {{ e.name or '' }}</option>{% endfor %}
+</select></div>
+<div class="form-group"><label>تاریخ</label><input name="report_date" class="form-control" value="{{ today }}"></div>
+<div class="form-group"><label>ساعت</label><input name="report_time" class="form-control" placeholder="14:30"></div>
+<div class="form-group"><label>اعلام‌کننده</label><input name="reporter_name" class="form-control"></div>
+<div class="form-group"><label>تلفن</label><input name="reporter_phone" class="form-control"></div>
+<div class="form-group"><label>اولویت</label>
+<select name="priority" class="form-control"><option value="normal">عادی</option><option value="high">بالا</option><option value="critical">بحرانی</option></select></div>
+<div class="form-group" style="grid-column:1/-1;"><label>شرح خرابی *</label><input name="description" class="form-control" required></div>
+<div class="form-group"><button class="btn btn-danger">ثبت خرابی</button></div>
+</form>
+</div>
+<div class="card">
+<h2>لیست خرابی‌ها</h2>
+<table>
+<thead><tr><th>تاریخ</th><th>آسانسور</th><th>شرح</th><th>اولویت</th><th>وضعیت</th><th>سرویس‌کار</th><th>عملیات</th></tr></thead>
+<tbody>
+{% for f in rows %}
+<tr>
+<td>{{ f.report_date }} {% if f.report_time %}{{ f.report_time }}{% endif %}</td>
+<td>{{ f.elev_code }}</td>
+<td>{{ f.description }}</td>
+<td>{{ f.priority }}</td>
+<td>{{ f.status }}</td>
+<td>{{ f.tech_name or '—' }}</td>
+<td>
+{% if f.status == 'open' %}
+<form method="post" action="{{ url_for('elev_fault_dispatch', fid=f.id) }}" style="display:inline-flex;gap:4px;">
+<select name="technician_id" class="form-control" style="width:120px;">{% for t in techs %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select>
+<button class="btn btn-sm btn-primary">اعزام</button>
+</form>
+{% elif f.status == 'dispatched' %}
+<form method="post" action="{{ url_for('elev_fault_close', fid=f.id) }}" style="display:flex;gap:4px;flex-wrap:wrap;">
+<input name="close_report" class="form-control" style="width:140px;" placeholder="گزارش بستن">
+<input type="number" name="labor_cost" class="form-control" style="width:90px;" placeholder="اجرت">
+<input type="number" name="parts_cost" class="form-control" style="width:90px;" placeholder="قطعه">
+<input type="hidden" name="create_repair" value="1">
+<button class="btn btn-sm btn-success">بستن + تعمیر</button>
+</form>
+{% else %}بسته{% endif %}
+</td>
+</tr>
+{% else %}<tr><td colspan="7" style="text-align:center;">خرابی ثبت نشده</td></tr>{% endfor %}
+</tbody></table>
+</div>
+{% endblock %}
