@@ -16,6 +16,12 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "ario-accounting-secret-key-2026-change-me")
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 
+# Create tables on startup (important for gunicorn / Render)
+try:
+    init_db()
+except Exception as _e:
+    print("init_db warning:", _e)
+
 # ---------------- Authentication ----------------
 def login_required(f):
     @wraps(f)

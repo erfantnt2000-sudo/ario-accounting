@@ -8,17 +8,22 @@ import os
 from datetime import datetime
 import jdatetime
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "ario.db")
+# On Render (and most cloud hosts) the filesystem is ephemeral; use /tmp which is always writable.
+# Locally keep data next to the project.
+if os.environ.get("RENDER") or os.environ.get("PORT"):
+    DB_PATH = os.path.join("/tmp", "ario.db")
+else:
+    DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "ario.db")
 
 def get_connection():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(DB_PATH) or '.', exist_ok=True)
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 def init_db():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(DB_PATH) or '.', exist_ok=True)
     conn = get_connection()
     c = conn.cursor()
 
