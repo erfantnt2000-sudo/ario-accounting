@@ -263,37 +263,100 @@
             background: var(--card);
         }
 
-        /* ========== Mobile ========== */
+        /* ========== Tablet & Mobile ========== */
         @media (max-width: 900px) {
+            .mobile-stack-form {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 8px !important;
+                width: 100%;
+            }
+            .mobile-stack-form .form-control,
+            .mobile-stack-form select,
+            .mobile-stack-form input,
+            .mobile-stack-form .btn {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
             .sidebar {
                 transform: translateX(105%);
+                width: min(300px, 88vw);
             }
-            .sidebar.open {
-                transform: translateX(0);
+            .sidebar.open { transform: translateX(0); }
+            .main { margin-right: 0 !important; width: 100%; }
+            .topbar {
+                padding: 10px 12px;
+                position: sticky;
+                top: 0;
             }
-            .main { margin-right: 0; }
-            .topbar .menu-btn { display: inline-flex; }
-            .content { padding: 14px 12px; }
-            .card { padding: 16px 14px; border-radius: 10px; }
-            .stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-            .stat-box .num { font-size: 1.3rem; }
-            .form-row { grid-template-columns: 1fr; }
-            .btn { padding: 11px 16px; /* larger touch target */ }
-            table { font-size: 0.82rem; }
-            th, td { padding: 9px 8px; }
+            .topbar .menu-btn { display: inline-flex !important; }
+            .content { padding: 12px 10px 24px; }
+            .card {
+                padding: 14px 12px;
+                border-radius: 10px;
+                margin-bottom: 12px;
+            }
+            .card h2, .card h3 { font-size: 1.05rem; }
+            .stats {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 8px;
+            }
+            .stat-box { padding: 14px 8px; }
+            .stat-box .num { font-size: 1.25rem; }
+            .stat-box .label { font-size: 0.75rem; }
+            .form-row {
+                grid-template-columns: 1fr !important;
+                gap: 8px;
+            }
+            .form-control {
+                font-size: 16px !important; /* prevent iOS zoom */
+                padding: 12px 12px;
+                min-height: 44px;
+            }
+            .btn {
+                min-height: 44px;
+                padding: 12px 14px;
+                width: auto;
+            }
+            .btn-sm { min-height: 36px; padding: 8px 10px; }
+            /* forms stacked: make action rows full width */
+            form.form-row .btn,
+            .form-row > .form-group .btn {
+                width: 100%;
+            }
+            table { font-size: 0.8rem; min-width: 520px; }
+            th, td { padding: 10px 8px; }
+            .table-wrap {
+                margin: 0 -12px;
+                padding: 0 4px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .sidebar nav a {
+                padding: 14px 18px;
+                font-size: 0.95rem;
+                min-height: 48px;
+            }
+            .footer-note { font-size: 0.7rem; padding: 10px; }
         }
         @media (max-width: 480px) {
-            .stats { grid-template-columns: 1fr 1fr; }
-            .topbar { padding: 10px 12px; }
-            .sidebar { width: 85%; max-width: 280px; }
+            .quick-actions { flex-direction: column !important; }
+            .quick-actions .btn { width: 100% !important; display: block !important; text-align: center; }
+
+            .stats { grid-template-columns: 1fr 1fr !important; }
+            .topbar div[style*="font-size"] { font-size: 0.75rem !important; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .card { padding: 12px 10px; }
+            /* full-width primary actions on tiny screens */
+            .card > a.btn, .card > p > a.btn { display: block; width: 100%; margin-bottom: 8px; text-align: center; }
         }
         @media (min-width: 901px) {
             .sidebar-overlay { display: none !important; }
+            .topbar .menu-btn { display: none !important; }
         }
-
-        /* Print */
         @media print {
-            .sidebar, .topbar .menu-btn, .footer-note { display: none !important; }
+            .sidebar, .topbar .menu-btn, .footer-note, .sidebar-overlay { display: none !important; }
             .main { margin: 0 !important; }
         }
     </style>
@@ -326,9 +389,6 @@
                 <a href="{{ url_for('parties') }}" class="{% if request.endpoint and 'party' in request.endpoint %}active{% endif %}">👤 <span>اشخاص (قدیمی)</span></a>
                 <a href="{{ url_for('products') }}" class="{% if request.endpoint and 'product' in request.endpoint %}active{% endif %}">📦 <span>کالا و انبار</span></a>
                 <a href="{{ url_for('invoices') }}" class="{% if request.endpoint and 'invoice' in request.endpoint %}active{% endif %}">🧾 <span>فاکتورها</span></a>
-                <a href="{{ url_for('trial_balance') }}" class="{% if request.endpoint == 'trial_balance' %}active{% endif %}">⚖️ <span>تراز آزمایشی</span></a>
-                <a href="{{ url_for('journal') }}" class="{% if request.endpoint == 'journal' %}active{% endif %}">📖 <span>دفتر روزنامه</span></a>
-                <a href="{{ url_for('profit_loss') }}" class="{% if request.endpoint == 'profit_loss' %}active{% endif %}">📈 <span>سود و زیان</span></a>
                 <a href="{{ url_for('logout') }}">🚪 <span>خروج</span></a>
             </nav>
             <div class="user-info">

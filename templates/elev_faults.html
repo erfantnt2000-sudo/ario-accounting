@@ -34,12 +34,12 @@
 <td>{{ f.tech_name or '—' }}</td>
 <td>
 {% if f.status == 'open' %}
-<form method="post" action="{{ url_for('elev_fault_dispatch', fid=f.id) }}" style="display:inline-flex;gap:4px;">
+<form method="post" action="{{ url_for('elev_fault_dispatch', fid=f.id) }}" class="mobile-stack-form" style="display:inline-flex;gap:4px;flex-wrap:wrap;">
 <select name="technician_id" class="form-control" style="width:120px;">{% for t in techs %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select>
 <button class="btn btn-sm btn-primary">اعزام</button>
 </form>
 {% elif f.status == 'dispatched' %}
-<form method="post" action="{{ url_for('elev_fault_close', fid=f.id) }}" style="display:flex;gap:4px;flex-wrap:wrap;">
+<form method="post" action="{{ url_for('elev_fault_close', fid=f.id) }}" class="mobile-stack-form" style="display:flex;gap:4px;flex-wrap:wrap;">
 <input name="close_report" class="form-control" style="width:140px;" placeholder="گزارش بستن">
 <input type="number" name="labor_cost" class="form-control" style="width:90px;" placeholder="اجرت">
 <input type="number" name="parts_cost" class="form-control" style="width:90px;" placeholder="قطعه">

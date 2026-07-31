@@ -10,18 +10,32 @@ import sqlite3
 from datetime import datetime
 from functools import wraps
 import jdatetime
-from database import init_db, get_connection, get_next_voucher_no, today_jalali, current_month_jalali, DB_PATH
+from database import init_db, get_connection, get_next_voucher_no, today_jalali, current_month_jalali, DB_PATH, create_indexes
 from elevator_models import init_elevator_tables, seed_elevator_sample
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "ario-accounting-secret-key-2026-change-me")
-app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['TEMPLATES_AUTO_RELOAD'] = not (os.environ.get('PORT') or os.environ.get('RENDER'))
+
+# --- Performance: cache static, security headers ---
+@app.after_request
+def add_perf_headers(response):
+    # static-like templates don't change often; short cache for assets
+    if request.path.startswith("/static"):
+        response.headers["Cache-Control"] = "public, max-age=86400"
+    else:
+        response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
 
 # Create tables on startup (important for gunicorn / Render)
 try:
     init_db()
     init_elevator_tables()
     seed_elevator_sample()
+    create_indexes()
 except Exception as _e:
     print("init_db warning:", _e)
 
@@ -1038,6 +1052,7 @@ if __name__ == "__main__":
     init_db()
     init_elevator_tables()
     seed_elevator_sample()
+    create_indexes()
     port = int(os.environ.get("PORT", 5000))
     print("=" * 50)
     print("  Ario Accounting - Online Ready")

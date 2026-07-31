@@ -32,7 +32,7 @@
 <td>{% if v.status=='done' %}<span class="badge" style="background:#d5f5e3;color:#1e8449;">انجام شد</span>{% elif v.status=='planned' %}<span class="badge">برنامه</span>{% else %}{{ v.status }}{% endif %}</td>
 <td>
 {% if v.status != 'done' %}
-<form method="post" action="{{ url_for('elev_visit_done', vid=v.id) }}" style="display:flex;gap:6px;flex-wrap:wrap;">
+<form method="post" action="{{ url_for('elev_visit_done', vid=v.id) }}" class="mobile-stack-form" style="display:flex;gap:6px;flex-wrap:wrap;">
 <input name="visit_date" class="form-control" style="width:110px;" value="{{ today }}" placeholder="تاریخ">
 <input name="report_text" class="form-control" style="width:160px;" placeholder="گزارش">
 <input name="customer_sign" class="form-control" style="width:100px;" placeholder="امضا/نام">

@@ -40,10 +40,9 @@
 
 <div class="card">
     <h3>دسترسی سریع</h3>
-    <p style="margin-bottom:12px;">
+    <p class="quick-actions" style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;">
         <a href="{{ url_for('voucher_add') }}" class="btn btn-primary">ثبت سند جدید</a>
         <a href="{{ url_for('invoice_sale') }}" class="btn btn-success">فاکتور فروش</a>
-        <a href="{{ url_for('trial_balance') }}" class="btn btn-secondary">تراز آزمایشی</a>
         <a href="{{ url_for('party_add') }}" class="btn btn-secondary">ثبت شخص</a>
     </p>
     <p style="color:#7f8c8d;font-size:0.9rem;">

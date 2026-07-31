@@ -16,10 +16,15 @@ else:
     DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "ario.db")
 
 def get_connection():
-    os.makedirs(os.path.dirname(DB_PATH) or '.', exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, timeout=30)
+    os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
+    conn = sqlite3.connect(DB_PATH, timeout=30, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA temp_store = MEMORY")
+    conn.execute("PRAGMA cache_size = -8000")  # ~8MB
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 def init_db():
@@ -255,3 +260,33 @@ def today_jalali():
 
 def current_month_jalali():
     return jdatetime.date.today().strftime("%Y/%m")
+
+
+def create_indexes():
+    """ایندکس‌های پرفورمنس"""
+    conn = get_connection()
+    c = conn.cursor()
+    indexes = [
+        "CREATE INDEX IF NOT EXISTS idx_vl_voucher ON voucher_lines(voucher_id)",
+        "CREATE INDEX IF NOT EXISTS idx_vl_account ON voucher_lines(account_code)",
+        "CREATE INDEX IF NOT EXISTS idx_appt_date ON appointments(appt_date)",
+        "CREATE INDEX IF NOT EXISTS idx_appt_party ON appointments(party_id)",
+        "CREATE INDEX IF NOT EXISTS idx_appt_done ON appointments(is_done)",
+        "CREATE INDEX IF NOT EXISTS idx_pay_date ON payments(pay_date)",
+        "CREATE INDEX IF NOT EXISTS idx_pay_party ON payments(party_id)",
+        "CREATE INDEX IF NOT EXISTS idx_visits_date ON service_visits(planned_date)",
+        "CREATE INDEX IF NOT EXISTS idx_visits_status ON service_visits(status)",
+        "CREATE INDEX IF NOT EXISTS idx_faults_status ON faults(status)",
+        "CREATE INDEX IF NOT EXISTS idx_faults_elev ON faults(elevator_id)",
+        "CREATE INDEX IF NOT EXISTS idx_contracts_end ON contracts(end_date)",
+        "CREATE INDEX IF NOT EXISTS idx_contracts_status ON contracts(status)",
+        "CREATE INDEX IF NOT EXISTS idx_elev_building ON elevators(building_id)",
+        "CREATE INDEX IF NOT EXISTS idx_parties_type ON parties(party_type)",
+    ]
+    for sql in indexes:
+        try:
+            c.execute(sql)
+        except Exception:
+            pass
+    conn.commit()
+    conn.close()
