@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}فاکتور فروش | حسابداری آریو{% endblock %}
+{% block page_title %}<strong>ثبت فاکتور فروش</strong>{% endblock %}
+{% block content %}
+<div class="card">
+    <form method="post">
+        <div class="form-row">
+            <div class="form-group">
+                <label>مشتری *</label>
+                <select name="party_id" class="form-control" required>
+                    <option value="">— انتخاب مشتری —</option>
+                    {% for p in parties %}
+                    <option value="{{ p.id }}">{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>تاریخ</label>
+                <input type="text" name="invoice_date" class="form-control" value="{{ today }}">
+            </div>
+            <div class="form-group">
+                <label>شرح</label>
+                <input type="text" name="description" class="form-control">
+            </div>
+        </div>
+
+        <h3 style="margin:20px 0 10px;">اقلام فاکتور</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>کالا</th>
+                    <th style="width:15%">تعداد</th>
+                    <th style="width:20%">قیمت واحد</th>
+                    <th style="width:5%"></th>
+                </tr>
+            </thead>
+            <tbody id="invLines">
+                <tr>
+                    <td>
+                        <select name="product_id[]" class="form-control" onchange="setPrice(this)">
+                            <option value="">— انتخاب کالا —</option>
+                            {% for p in products %}
+                            <option value="{{ p.id }}" data-price="{{ p.sell_price }}" data-stock="{{ p.stock_qty }}">
+                                {{ p.code }} — {{ p.name }} (موجودی: {{ p.stock_qty }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td><input type="number" step="0.01" name="qty[]" class="form-control" value="1"></td>
+                    <td><input type="number" step="1" name="unit_price[]" class="form-control price" value="0"></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+        <p style="margin-top:10px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="addInvLine()">+ ردیف</button>
+        </p>
+        <button type="submit" class="btn btn-success">ثبت فاکتور و سند</button>
+        <a href="{{ url_for('invoices') }}" class="btn btn-secondary">انصراف</a>
+    </form>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const prodOptions = `{% for p in products %}<option value="{{ p.id }}" data-price="{{ p.sell_price }}">{{ p.code }} — {{ p.name }} (موجودی: {{ p.stock_qty }})</option>{% endfor %}`;
+function addInvLine() {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><select name="product_id[]" class="form-control" onchange="setPrice(this)"><option value="">— انتخاب کالا —</option>${prodOptions}</select></td>
+        <td><input type="number" step="0.01" name="qty[]" class="form-control" value="1"></td>
+        <td><input type="number" step="1" name="unit_price[]" class="form-control price" value="0"></td>
+        <td><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()">×</button></td>
+    `;
+    document.getElementById('invLines').appendChild(tr);
+}
+function setPrice(sel) {
+    const opt = sel.options[sel.selectedIndex];
+    const price = opt.getAttribute('data-price') || 0;
+    sel.closest('tr').querySelector('.price').value = price;
+}
+</script>
+{% endblock %}

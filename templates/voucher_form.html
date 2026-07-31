@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}ثبت سند حسابداری | حسابداری آریو{% endblock %}
+{% block page_title %}<strong>ثبت سند حسابداری جدید</strong>{% endblock %}
+{% block content %}
+<div class="card">
+    <form method="post" id="voucherForm">
+        <div class="form-row">
+            <div class="form-group">
+                <label>تاریخ سند</label>
+                <input type="text" name="voucher_date" class="form-control" value="{{ today }}" placeholder="1403/01/01">
+            </div>
+            <div class="form-group">
+                <label>شرح سند</label>
+                <input type="text" name="description" class="form-control" placeholder="شرح کلی سند">
+            </div>
+        </div>
+
+        <h3 style="margin:20px 0 10px;">ردیف‌های سند</h3>
+        <table id="linesTable">
+            <thead>
+                <tr>
+                    <th style="width:30%">حساب</th>
+                    <th>شرح ردیف</th>
+                    <th style="width:15%">بدهکار</th>
+                    <th style="width:15%">بستانکار</th>
+                    <th style="width:5%"></th>
+                </tr>
+            </thead>
+            <tbody id="linesBody">
+                <tr>
+                    <td>
+                        <select name="account_code[]" class="form-control" required>
+                            <option value="">— انتخاب حساب —</option>
+                            {% for a in accounts %}
+                            <option value="{{ a.code }}">{{ a.code }} — {{ a.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td><input type="text" name="line_desc[]" class="form-control"></td>
+                    <td><input type="number" step="1" name="debit[]" class="form-control debit" value="0" onchange="calcTotal()"></td>
+                    <td><input type="number" step="1" name="credit[]" class="form-control credit" value="0" onchange="calcTotal()"></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+        <p style="margin-top:10px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="addLine()">+ ردیف جدید</button>
+        </p>
+        <div style="margin:16px 0;font-weight:bold;">
+            جمع بدهکار: <span id="sumDebit">0</span> &nbsp;|&nbsp;
+            جمع بستانکار: <span id="sumCredit">0</span> &nbsp;|&nbsp;
+            <span id="balanceMsg" style="color:#c0392b;"></span>
+        </div>
+        <button type="submit" class="btn btn-primary">ثبت سند</button>
+        <a href="{{ url_for('vouchers') }}" class="btn btn-secondary">انصراف</a>
+    </form>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const accountsOptions = `{% for a in accounts %}<option value="{{ a.code }}">{{ a.code }} — {{ a.name }}</option>{% endfor %}`;
+function addLine() {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><select name="account_code[]" class="form-control"><option value="">— انتخاب حساب —</option>${accountsOptions}</select></td>
+        <td><input type="text" name="line_desc[]" class="form-control"></td>
+        <td><input type="number" step="1" name="debit[]" class="form-control debit" value="0" onchange="calcTotal()"></td>
+        <td><input type="number" step="1" name="credit[]" class="form-control credit" value="0" onchange="calcTotal()"></td>
+        <td><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();calcTotal()">×</button></td>
+    `;
+    document.getElementById('linesBody').appendChild(tr);
+}
+function calcTotal() {
+    let d = 0, c = 0;
+    document.querySelectorAll('.debit').forEach(el => d += parseFloat(el.value)||0);
+    document.querySelectorAll('.credit').forEach(el => c += parseFloat(el.value)||0);
+    document.getElementById('sumDebit').textContent = d.toLocaleString('fa-IR');
+    document.getElementById('sumCredit').textContent = c.toLocaleString('fa-IR');
+    const msg = document.getElementById('balanceMsg');
+    if (Math.abs(d-c) < 0.01) {
+        msg.textContent = '✓ سند تراز است';
+        msg.style.color = '#27ae60';
+    } else {
+        msg.textContent = '⚠ سند تراز نیست!';
+        msg.style.color = '#c0392b';
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}پرداخت و بدهی | حسابداری آریو{% endblock %}
+{% block page_title %}<strong>پرداختی‌ها و بدهکاری مشتریان — {{ month }}</strong>{% endblock %}
+{% block content %}
+
+<div class="card">
+    <h3>ثبت پرداخت جدید</h3>
+    <form method="post" action="{{ url_for('payment_add') }}" class="form-row" style="align-items:end;">
+        <div class="form-group">
+            <label>مشتری *</label>
+            <select name="party_id" class="form-control" required>
+                <option value="">— انتخاب —</option>
+                {% for c in customers %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>تاریخ</label>
+            <input type="text" name="pay_date" class="form-control" value="{{ today }}">
+        </div>
+        <div class="form-group">
+            <label>مبلغ (ریال) *</label>
+            <input type="number" name="amount" class="form-control" required min="1">
+        </div>
+        <div class="form-group">
+            <label>روش</label>
+            <select name="method" class="form-control">
+                <option value="cash">نقد</option>
+                <option value="card">کارت</option>
+                <option value="transfer">انتقال</option>
+                <option value="check">چک</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>توضیح</label>
+            <input type="text" name="description" class="form-control">
+        </div>
+        <div class="form-group">
+            <button type="submit" class="btn btn-success">ثبت پرداخت</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <form method="get" style="margin-bottom:12px;">
+        <label>ماه: </label>
+        <input type="text" name="month" class="form-control" style="width:140px;display:inline-block;" value="{{ month }}">
+        <button type="submit" class="btn btn-primary btn-sm">فیلتر</button>
+    </form>
+    <h2>پرداخت‌های ماه {{ month }}</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>تاریخ</th>
+                <th>مشتری</th>
+                <th>مبلغ</th>
+                <th>روش</th>
+                <th>توضیح</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in payments %}
+            <tr>
+                <td>{{ p.pay_date }}</td>
+                <td>{{ p.customer_name }}</td>
+                <td class="text-left" style="color:#27ae60;font-weight:bold;">{{ "{:,.0f}".format(p.amount) }}</td>
+                <td>
+                    {% if p.method == 'cash' %}نقد
+                    {% elif p.method == 'card' %}کارت
+                    {% elif p.method == 'transfer' %}انتقال
+                    {% elif p.method == 'check' %}چک
+                    {% else %}{{ p.method }}{% endif %}
+                </td>
+                <td>{{ p.description or '—' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" style="text-align:center;">پرداختی در این ماه ثبت نشده.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>وضعیت بدهکاری / بستانکاری مشتریان</h2>
+    <p style="color:#7f8c8d;font-size:0.9rem;margin-bottom:12px;">مانده = جمع سرویس‌های انجام‌شده − جمع پرداخت‌ها (مثبت = بدهکار مشتری)</p>
+    <table>
+        <thead>
+            <tr>
+                <th>مشتری</th>
+                <th>تلفن</th>
+                <th>جمع سرویس</th>
+                <th>جمع پرداخت</th>
+                <th>مانده</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in debts %}
+            <tr>
+                <td><strong>{{ d.name }}</strong></td>
+                <td class="text-left">{{ d.phone or '—' }}</td>
+                <td class="text-left">{{ "{:,.0f}".format(d.total_service) }}</td>
+                <td class="text-left">{{ "{:,.0f}".format(d.total_paid) }}</td>
+                <td class="text-left" style="font-weight:bold;color:{% if d.balance > 0 %}#c0392b{% elif d.balance < 0 %}#27ae60{% else %}inherit{% endif %};">
+                    {% if d.balance > 0 %}بدهکار {{ "{:,.0f}".format(d.balance) }}
+                    {% elif d.balance < 0 %}بستانکار {{ "{:,.0f}".format(-d.balance) }}
+                    {% else %}تسویه{% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" style="text-align:center;">داده‌ای نیست.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

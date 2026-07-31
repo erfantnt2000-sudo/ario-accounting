@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ورود | حسابداری آریو</title>
+    <style>
+        body {
+            font-family: Tahoma, sans-serif;
+            background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+        }
+        .login-box {
+            background: #fff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+        }
+        .login-box h1 { color: #1a5276; margin-bottom: 8px; font-size: 1.5rem; }
+        .login-box p { color: #7f8c8d; margin-bottom: 28px; font-size: 0.9rem; }
+        .form-group { margin-bottom: 16px; text-align: right; }
+        .form-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.9rem; }
+        .form-control {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #dfe6e9;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: #2980b9;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-family: inherit;
+            margin-top: 8px;
+        }
+        .btn:hover { background: #1f6dad; }
+        .alert { background: #fadbd8; color: #922b21; padding: 10px; border-radius: 6px; margin-bottom: 16px; font-size: 0.9rem; }
+        .hint { margin-top: 20px; font-size: 0.8rem; color: #95a5a6; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h1>حسابداری آریو</h1>
+        <p>نرم‌افزار حسابداری فارسی</p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for cat, msg in messages %}
+                    <div class="alert">{{ msg }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <form method="post">
+            <div class="form-group">
+                <label>نام کاربری</label>
+                <input type="text" name="username" class="form-control" required autofocus value="admin">
+            </div>
+            <div class="form-group">
+                <label>رمز عبور</label>
+                <input type="password" name="password" class="form-control" required value="admin">
+            </div>
+            <button type="submit" class="btn">ورود به سیستم</button>
+        </form>
+        <div class="hint">پیش‌فرض: admin / admin</div>
+    </div>
+</body>
+</html>

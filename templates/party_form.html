@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{% if party %}ویرایش{% else %}افزودن{% endif %} شخص{% endblock %}
+{% block page_title %}<strong>{% if party %}ویرایش شخص{% else %}شخص جدید{% endif %}</strong>{% endblock %}
+{% block content %}
+<div class="card" style="max-width:600px;">
+    <form method="post">
+        <div class="form-row">
+            <div class="form-group">
+                <label>کد</label>
+                <input type="text" name="code" class="form-control" value="{{ party.code if party else '' }}">
+            </div>
+            <div class="form-group">
+                <label>نام *</label>
+                <input type="text" name="name" class="form-control" required value="{{ party.name if party else '' }}">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>نوع</label>
+            <select name="party_type" class="form-control">
+                <option value="customer" {% if party and party.party_type=='customer' %}selected{% endif %}>مشتری</option>
+                <option value="supplier" {% if party and party.party_type=='supplier' %}selected{% endif %}>تأمین‌کننده</option>
+                <option value="both" {% if party and party.party_type=='both' %}selected{% endif %}>هر دو</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>تلفن</label>
+            <input type="text" name="phone" class="form-control" value="{{ party.phone if party else '' }}">
+        </div>
+        <div class="form-group">
+            <label>آدرس</label>
+            <textarea name="address" class="form-control" rows="2">{{ party.address if party else '' }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">ذخیره</button>
+        <a href="{{ url_for('parties') }}" class="btn btn-secondary">انصراف</a>
+    </form>
+</div>
+{% endblock %}

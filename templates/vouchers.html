@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}اسناد حسابداری | حسابداری آریو{% endblock %}
+{% block page_title %}<strong>اسناد حسابداری</strong>{% endblock %}
+{% block content %}
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="margin:0;">فهرست اسناد</h2>
+        <a href="{{ url_for('voucher_add') }}" class="btn btn-primary">+ سند جدید</a>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>شماره سند</th>
+                <th>تاریخ</th>
+                <th>شرح</th>
+                <th>نوع</th>
+                <th>مبلغ (بدهکار)</th>
+                <th>عملیات</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in vouchers %}
+            <tr>
+                <td class="text-left"><strong>{{ v.voucher_no }}</strong></td>
+                <td>{{ v.voucher_date }}</td>
+                <td>{{ v.description or '—' }}</td>
+                <td>
+                    {% if v.voucher_type == 'manual' %}دستی
+                    {% elif v.voucher_type == 'sale' %}فروش
+                    {% else %}{{ v.voucher_type }}{% endif %}
+                </td>
+                <td class="text-left">{{ "{:,.0f}".format(v.total_debit or 0) }}</td>
+                <td><a href="{{ url_for('voucher_view', vid=v.id) }}" class="btn btn-sm btn-secondary">مشاهده</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" style="text-align:center;">سندی ثبت نشده است.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

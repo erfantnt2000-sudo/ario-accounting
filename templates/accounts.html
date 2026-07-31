@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}کدینگ حساب‌ها | حسابداری آریو{% endblock %}
+{% block page_title %}<strong>کدینگ حساب‌ها</strong>{% endblock %}
+{% block content %}
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="margin:0;">فهرست حساب‌ها</h2>
+        <a href="{{ url_for('account_add') }}" class="btn btn-primary">+ حساب جدید</a>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>کد</th>
+                <th>نام حساب</th>
+                <th>نوع</th>
+                <th>حساب والد</th>
+                <th>عملیات</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in accounts %}
+            <tr>
+                <td class="text-left"><strong>{{ a.code }}</strong></td>
+                <td>{{ a.name }}</td>
+                <td>
+                    {% if a.account_type == 'asset' %}دارایی
+                    {% elif a.account_type == 'liability' %}بدهی
+                    {% elif a.account_type == 'equity' %}حقوق صاحبان سهام
+                    {% elif a.account_type == 'revenue' %}درآمد
+                    {% elif a.account_type == 'expense' %}هزینه
+                    {% else %}{{ a.account_type }}{% endif %}
+                </td>
+                <td>{{ a.parent_code or '—' }}</td>
+                <td><a href="{{ url_for('account_edit', aid=a.id) }}" class="btn btn-sm btn-secondary">ویرایش</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" style="text-align:center;">حسابی تعریف نشده است.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
