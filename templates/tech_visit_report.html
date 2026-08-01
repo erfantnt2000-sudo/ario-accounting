@@ -32,6 +32,18 @@
     <label>امضای کارفرما / مدیر ساختمان</label>
     <input name="customer_sign" class="form-control" placeholder="نام امضاکننده" required>
   </div>
+  <div class="form-group">
+    <label>امتیاز اولیه مشتری (اختیاری)</label>
+    <select name="rating" class="form-control">
+      <option value="">—</option>
+      <option value="5">۵</option><option value="4">۴</option><option value="3">۳</option>
+      <option value="2">۲</option><option value="1">۱</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>نظر مشتری</label>
+    <input name="rating_note" class="form-control" placeholder="اختیاری">
+  </div>
   <button type="submit" class="btn btn-success" style="width:100%;min-height:48px;">✓ ثبت انجام سرویس</button>
   <a href="{{ url_for('tech_home') }}" class="btn btn-secondary" style="width:100%;margin-top:8px;">انصراف</a>
 </form>

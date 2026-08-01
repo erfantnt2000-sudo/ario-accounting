@@ -17,5 +17,7 @@
 <div class="form-group"><label>آدرس</label><input name="address" class="form-control"></div>
 <button class="btn btn-primary">ذخیره</button>
 <a href="{{ url_for('elev_buildings') }}" class="btn btn-secondary">انصراف</a>
+<div class="form-group"><label>لینک نقشه / مسیریابی</label>
+<input name="map_link" class="form-control" placeholder="https://maps.google.com/..." value="{{ building.map_link if building else '' }}"></div>
 </form></div>
 {% endblock %}

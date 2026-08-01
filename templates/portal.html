@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>پورتال مشتری | آریو</title>
+<style>
+:root { --p:#0d9488; --pd:#0f766e; --bg:#f0fdfa; --card:#fff; --text:#134e4a; --muted:#5eead4; --border:#99f6e4; }
+* { box-sizing:border-box; }
+body { margin:0; font-family:Tahoma,sans-serif; background:var(--bg); color:var(--text); }
+.wrap { max-width:720px; margin:0 auto; padding:16px; }
+.hero { background:linear-gradient(135deg,#0d9488,#0f766e); color:#fff; border-radius:16px; padding:20px; margin-bottom:16px; }
+.hero h1 { margin:0 0 8px; font-size:1.25rem; }
+.hero p { margin:4px 0; opacity:.95; font-size:.9rem; }
+.card { background:var(--card); border-radius:14px; padding:16px; margin-bottom:14px; box-shadow:0 4px 14px rgba(13,148,136,.12); border:1px solid var(--border); }
+.card h2 { margin:0 0 12px; font-size:1.05rem; color:var(--pd); }
+.row { display:flex; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px dashed #ccfbf1; font-size:.9rem; }
+.row:last-child { border:none; }
+.badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:.75rem; background:#ccfbf1; color:#115e59; }
+.btn { display:inline-block; background:var(--p); color:#fff; border:none; border-radius:10px; padding:12px 16px; font-size:.95rem; cursor:pointer; width:100%; text-decoration:none; text-align:center; }
+.btn:hover { background:var(--pd); }
+input, textarea, select { width:100%; padding:10px 12px; border:1px solid #99f6e4; border-radius:10px; margin:6px 0 12px; font-family:inherit; }
+label { font-size:.85rem; color:#0f766e; }
+.stars { font-size:1.4rem; letter-spacing:2px; }
+.stars a { text-decoration:none; color:#cbd5e1; }
+.alert { background:#d1fae5; color:#065f46; padding:10px 14px; border-radius:10px; margin-bottom:12px; }
+.map-btn { background:#0369a1; }
+.item { background:#f8fafc; border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:.88rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <h1>🏢 {{ contract.building_name or 'ساختمان' }}</h1>
+    <p>کارفرما: {{ contract.party_name }} {% if contract.party_phone %}· {{ contract.party_phone }}{% endif %}</p>
+    <p>قرارداد: {{ contract.contract_no }} · آسانسور {{ contract.elev_code or '—' }}</p>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}<div class="alert">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+
+  <div class="card">
+    <h2>📄 مشخصات قرارداد</h2>
+    <div class="row"><span>شروع</span><b>{{ contract.start_date }}</b></div>
+    <div class="row"><span>پایان</span><b>{{ contract.end_date }}</b></div>
+    <div class="row"><span>مبلغ</span><b>{{ "{:,.0f}".format(contract.amount or 0) }} ریال</b></div>
+    <div class="row"><span>وضعیت</span><span class="badge">{{ contract.status }}</span></div>
+    {% if contract.insurance_end %}
+    <div class="row"><span>پایان بیمه</span><b>{{ contract.insurance_end }}</b></div>
+    {% endif %}
+    {% if contract.building_address %}
+    <div class="row"><span>آدرس</span><b>{{ contract.building_address }}</b></div>
+    {% endif %}
+    {% if contract.map_link or (contract.lat and contract.lng) %}
+    <a class="btn map-btn" style="margin-top:10px;" target="_blank"
+       href="{% if contract.map_link %}{{ contract.map_link }}{% else %}https://maps.google.com/?q={{ contract.lat }},{{ contract.lng }}{% endif %}">
+      📍 مسیریابی ساختمان
+    </a>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>🛠️ تاریخچه سرویس</h2>
+    {% for v in visits %}
+    <div class="item">
+      <b>{{ v.planned_date }}</b> — {{ v.status }}
+      {% if v.visit_date %} · انجام: {{ v.visit_date }}{% endif %}
+      {% if v.rating %}<div class="stars">{% for i in range(v.rating) %}⭐{% endfor %}</div>{% endif %}
+      {% if v.status == 'done' and not v.rating %}
+      <form method="post" action="{{ url_for('portal_rate', token=token, vid=v.id) }}" style="margin-top:8px;">
+        <label>امتیاز به سرویس‌کار</label>
+        <select name="rating">
+          <option value="5">۵ عالی</option>
+          <option value="4">۴ خوب</option>
+          <option value="3">۳ متوسط</option>
+          <option value="2">۲ ضعیف</option>
+          <option value="1">۱ بد</option>
+        </select>
+        <input name="rating_note" placeholder="نظر اختیاری">
+        <button class="btn" type="submit">ثبت امتیاز</button>
+      </form>
+      {% endif %}
+    </div>
+    {% else %}
+    <p style="color:#64748b;text-align:center;">هنوز سرویسی ثبت نشده</p>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <h2>⚠️ اعلام خرابی</h2>
+    <form method="post" action="{{ url_for('portal_fault', token=token) }}">
+      <label>نام اعلام‌کننده</label>
+      <input name="reporter_name" value="{{ contract.party_name or '' }}">
+      <label>تلفن</label>
+      <input name="reporter_phone" value="{{ contract.party_phone or '' }}">
+      <label>اولویت</label>
+      <select name="priority">
+        <option value="normal">عادی</option>
+        <option value="high">بالا</option>
+        <option value="critical">اضطراری</option>
+      </select>
+      <label>شرح خرابی *</label>
+      <textarea name="description" rows="3" required placeholder="مثلاً: آسانسور بین طبقات گیر کرده"></textarea>
+      <button class="btn" type="submit">ارسال اعلام خرابی</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>خرابی‌های قبلی</h2>
+    {% for f in faults %}
+    <div class="item"><b>{{ f.report_date }}</b> — {{ f.status }}<br>{{ f.description }}</div>
+    {% else %}
+    <p style="color:#64748b;text-align:center;">موردی نیست</p>
+    {% endfor %}
+  </div>
+
+  <p style="text-align:center;font-size:.75rem;color:#94a3b8;margin:20px 0;">نرم‌افزار سرویس آسانسور آریو</p>
+</div>
+</body>
+</html>

@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title>{% block title %}آریو — سرویس آسانسور{% endblock %}</title>
+    <title>{% block title %}آریو سرویس{% endblock %}</title>
     <style>
         :root {
-            --primary: #0f4c75;
+            --primary: #0d9488;
             --primary-dark: #0a2f4a;
             --primary-light: #1b6ca8;
-            --accent: #3282b8;
+            --accent: #14b8a6;
             --success: #2ecc71;
             --danger: #e74c3c;
             --warning: #f39c12;
@@ -403,7 +403,7 @@
             .topbar .menu-btn { display: none !important; }
         }
         @media print {
-            .sidebar, .topbar .menu-btn, .footer-note, .sidebar-overlay { display: none !important; }
+            .sidebar, .topbar, .topbar .menu-btn, .footer-note, .sidebar-overlay, .alert, .no-print, .menu-btn { display: none !important; }
             .main { margin: 0 !important; }
         }
     </style>
@@ -476,7 +476,7 @@
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for cat, msg in messages %}
-                            <div class="alert alert-{{ cat }}">{{ msg }}</div>
+                            <div class="alert alert-{{ cat }} no-print">{{ msg }}</div>
                         {% endfor %}
                     {% endif %}
                 {% endwith %}

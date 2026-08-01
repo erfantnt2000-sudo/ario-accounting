@@ -9,6 +9,7 @@ import os
 import sqlite3
 from datetime import datetime
 from functools import wraps
+import secrets
 import jdatetime
 from database import init_db, get_connection, get_next_voucher_no, today_jalali, current_month_jalali, DB_PATH, create_indexes
 from elevator_models import init_elevator_tables, seed_elevator_sample
@@ -704,12 +705,14 @@ def customer_register():
             elev_id = cur.lastrowid
             if not contract_no:
                 contract_no = f"CT-{datetime.now().strftime('%Y%m%d')}-{party_id}"
+            token = secrets.token_urlsafe(12)
+            insurance_end = (request.form.get("insurance_end") or "").strip() or None
             cur.execute(
                 """INSERT INTO contracts (contract_no, party_id, building_id, elevator_id, start_date, end_date,
-                   amount, visit_per_month, payment_type, status, description, created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                   amount, visit_per_month, payment_type, status, description, created_at, public_token, insurance_end)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (contract_no, party_id, building_id, elev_id, start_date, end_date, amount,
-                 visit_per_month, "monthly", "active", notes, datetime.now().isoformat())
+                 visit_per_month, "monthly", "active", notes, datetime.now().isoformat(), token, insurance_end)
             )
             contract_id = cur.lastrowid
             cur.execute(
@@ -718,7 +721,7 @@ def customer_register():
                 (contract_id, elev_id, tech_id, first_service, "periodic", "planned", amount / max(visit_per_month * 12, 1), datetime.now().isoformat())
             )
             conn.commit()
-            flash(f"ثبت شد: {name} — {building_name} — قرارداد {contract_no}", "success")
+            flash(f"ثبت شد: {name} — {building_name} — قرارداد {contract_no} | لینک پورتال: /portal/{token}", "success")
             return redirect(url_for("customers"))
         except Exception as e:
             conn.rollback()
@@ -1375,9 +1378,11 @@ def tech_visit_report(vid):
         report = request.form.get("report_text") or ""
         sign = request.form.get("customer_sign") or ""
         photo_note = request.form.get("photo_note") or ""
+        rating = request.form.get("rating") or None
+        rating_note = request.form.get("rating_note") or ""
         conn.execute(
-            "UPDATE service_visits SET status='done', visit_date=?, report_text=?, customer_sign=?, photo_note=?, technician_id=COALESCE(technician_id, ?) WHERE id=?",
-            (today_jalali(), report, sign, photo_note, session.get("technician_id"), vid)
+            "UPDATE service_visits SET status='done', visit_date=?, report_text=?, customer_sign=?, photo_note=?, technician_id=COALESCE(technician_id, ?), rating=?, rating_note=? WHERE id=?",
+            (today_jalali(), report, sign, photo_note, session.get("technician_id"), rating, rating_note, vid)
         )
         conn.execute("DELETE FROM visit_checklist WHERE visit_id=?", (vid,))
         for key, label in SERVICE_CHECKLIST:
@@ -1394,6 +1399,83 @@ def tech_visit_report(vid):
 
     conn.close()
     return render_template("tech_visit_report.html", visit=visit, checklist=SERVICE_CHECKLIST, today=today_jalali())
+
+
+
+# ==================== پورتال مشتری (شبیه تی‌لیفت) ====================
+
+@app.route("/portal/<token>")
+def customer_portal(token):
+    """مشاهده قرارداد، بیمه، سرویس‌ها و اعلام خرابی توسط کارفرما"""
+    conn = get_connection()
+    c = conn.execute("""
+        SELECT c.*, p.name as party_name, p.phone as party_phone, p.address as party_address,
+               b.name as building_name, b.address as building_address, b.map_link, b.lat, b.lng,
+               e.code as elev_code, e.brand as elev_brand
+        FROM contracts c
+        LEFT JOIN parties p ON p.id=c.party_id
+        LEFT JOIN buildings b ON b.id=c.building_id
+        LEFT JOIN elevators e ON e.id=c.elevator_id
+        WHERE c.public_token=?
+    """, (token,)).fetchone()
+    if not c:
+        conn.close()
+        return "لینک نامعتبر است", 404
+    visits = conn.execute("""
+        SELECT * FROM service_visits WHERE contract_id=? ORDER BY planned_date DESC LIMIT 20
+    """, (c["id"],)).fetchall()
+    faults = conn.execute("""
+        SELECT f.* FROM faults f
+        WHERE f.elevator_id=? ORDER BY f.report_date DESC LIMIT 10
+    """, (c["elevator_id"],)).fetchall() if c["elevator_id"] else []
+    conn.close()
+    return render_template("portal.html", contract=c, visits=visits, faults=faults, token=token)
+
+@app.route("/portal/<token>/fault", methods=["POST"])
+def portal_fault(token):
+    conn = get_connection()
+    c = conn.execute("SELECT * FROM contracts WHERE public_token=?", (token,)).fetchone()
+    if not c or not c["elevator_id"]:
+        conn.close()
+        flash("قرارداد نامعتبر", "danger")
+        return redirect(url_for("customer_portal", token=token))
+    desc = (request.form.get("description") or "").strip()
+    if not desc:
+        conn.close()
+        flash("شرح خرابی الزامی است", "danger")
+        return redirect(url_for("customer_portal", token=token))
+    conn.execute(
+        """INSERT INTO faults (elevator_id, report_date, report_time, reporter_name, reporter_phone,
+           description, priority, status, source, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?)""",
+        (c["elevator_id"], today_jalali(), datetime.now().strftime("%H:%M"),
+         request.form.get("reporter_name") or "",
+         request.form.get("reporter_phone") or "",
+         desc, request.form.get("priority") or "normal", "open", "customer",
+         datetime.now().isoformat())
+    )
+    conn.commit()
+    conn.close()
+    flash("خرابی ثبت شد. به زودی پیگیری می‌شود.", "success")
+    return redirect(url_for("customer_portal", token=token))
+
+@app.route("/portal/<token>/rate/<int:vid>", methods=["POST"])
+def portal_rate(token, vid):
+    conn = get_connection()
+    c = conn.execute("SELECT id FROM contracts WHERE public_token=?", (token,)).fetchone()
+    if not c:
+        conn.close()
+        return redirect("/")
+    rating = int(request.form.get("rating") or 0)
+    note = request.form.get("rating_note") or ""
+    conn.execute(
+        "UPDATE service_visits SET rating=?, rating_note=? WHERE id=? AND contract_id=?",
+        (rating, note, vid, c["id"])
+    )
+    conn.commit()
+    conn.close()
+    flash("امتیاز ثبت شد. متشکریم.", "success")
+    return redirect(url_for("customer_portal", token=token))
 
 
 if __name__ == "__main__":

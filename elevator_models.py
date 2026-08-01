@@ -193,6 +193,26 @@ def init_elevator_tables():
             c.execute("UPDATE technicians SET user_id=? WHERE code='T01' AND (user_id IS NULL OR user_id=0)", (u[0] if not hasattr(u,'keys') else u['id'],))
     except Exception:
         pass
+    
+    # ستون‌های شبیه تی‌لیفت (اگر نبود اضافه شود)
+    extras = [
+        ("buildings", "lat", "TEXT"),
+        ("buildings", "lng", "TEXT"),
+        ("buildings", "map_link", "TEXT"),
+        ("contracts", "insurance_end", "TEXT"),
+        ("contracts", "insurance_no", "TEXT"),
+        ("contracts", "check_due", "TEXT"),
+        ("contracts", "public_token", "TEXT"),
+        ("service_visits", "rating", "INTEGER"),
+        ("service_visits", "rating_note", "TEXT"),
+        ("faults", "source", "TEXT DEFAULT 'office'"),
+    ]
+    for table, col, typ in extras:
+        try:
+            c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
+        except Exception:
+            pass
+
     conn.commit()
     conn.close()
     print("Elevator tables ready.")
