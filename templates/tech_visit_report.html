@@ -1,6 +1,38 @@
 {% extends "base.html" %}
 {% block title %}گزارش سرویس{% endblock %}
+{% block extra_js %}
+<script>
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    document.getElementById('gps_lat').value = pos.coords.latitude;
+    document.getElementById('gps_lng').value = pos.coords.longitude;
+    document.getElementById('gps_status').textContent = '📍 موقعیت ثبت شد';
+  }, function() {
+    document.getElementById('gps_status').textContent = 'موقعیت در دسترس نیست (اختیاری)';
+  }, {enableHighAccuracy:true, timeout:8000});
+} else {
+  document.getElementById('gps_status').textContent = 'مرورگر از GPS پشتیبانی نمی‌کند';
+}
+</script>
+{% endblock %}
+
 {% block page_title %}<strong>گزارش سرویس</strong>{% endblock %}
+{% block extra_js %}
+<script>
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    document.getElementById('gps_lat').value = pos.coords.latitude;
+    document.getElementById('gps_lng').value = pos.coords.longitude;
+    document.getElementById('gps_status').textContent = '📍 موقعیت ثبت شد';
+  }, function() {
+    document.getElementById('gps_status').textContent = 'موقعیت در دسترس نیست (اختیاری)';
+  }, {enableHighAccuracy:true, timeout:8000});
+} else {
+  document.getElementById('gps_status').textContent = 'مرورگر از GPS پشتیبانی نمی‌کند';
+}
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="card">
   <h2>{{ visit.building_name or '' }} — {{ visit.elev_code }}</h2>
@@ -44,7 +76,26 @@
     <label>نظر مشتری</label>
     <input name="rating_note" class="form-control" placeholder="اختیاری">
   </div>
+  <input type="hidden" name="gps_lat" id="gps_lat">
+  <input type="hidden" name="gps_lng" id="gps_lng">
+  <p id="gps_status" style="font-size:0.85rem;color:var(--muted);">📍 در حال دریافت موقعیت...</p>
   <button type="submit" class="btn btn-success" style="width:100%;min-height:48px;">✓ ثبت انجام سرویس</button>
   <a href="{{ url_for('tech_home') }}" class="btn btn-secondary" style="width:100%;margin-top:8px;">انصراف</a>
 </form>
 {% endblock %}
+{% block extra_js %}
+<script>
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    document.getElementById('gps_lat').value = pos.coords.latitude;
+    document.getElementById('gps_lng').value = pos.coords.longitude;
+    document.getElementById('gps_status').textContent = '📍 موقعیت ثبت شد';
+  }, function() {
+    document.getElementById('gps_status').textContent = 'موقعیت در دسترس نیست (اختیاری)';
+  }, {enableHighAccuracy:true, timeout:8000});
+} else {
+  document.getElementById('gps_status').textContent = 'مرورگر از GPS پشتیبانی نمی‌کند';
+}
+</script>
+{% endblock %}
+

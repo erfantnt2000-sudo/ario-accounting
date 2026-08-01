@@ -206,6 +206,10 @@ def init_elevator_tables():
         ("service_visits", "rating", "INTEGER"),
         ("service_visits", "rating_note", "TEXT"),
         ("faults", "source", "TEXT DEFAULT 'office'"),
+        ("service_visits", "gps_lat", "TEXT"),
+        ("service_visits", "gps_lng", "TEXT"),
+        ("contracts", "renew_sign", "TEXT"),
+        ("contracts", "renewed_at", "TEXT"),
     ]
     for table, col, typ in extras:
         try:
@@ -213,6 +217,14 @@ def init_elevator_tables():
         except Exception:
             pass
 
+    # backfill public_token
+    try:
+        import secrets as _sec
+        rows = c.execute("SELECT id FROM contracts WHERE public_token IS NULL OR public_token=''").fetchall()
+        for r in rows:
+            c.execute("UPDATE contracts SET public_token=? WHERE id=?", (_sec.token_urlsafe(12), r[0]))
+    except Exception as e:
+        print("token backfill:", e)
     conn.commit()
     conn.close()
     print("Elevator tables ready.")

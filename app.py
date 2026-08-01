@@ -869,19 +869,31 @@ def payment_add():
 @app.route("/elevators/dashboard")
 @login_required
 def elev_dashboard():
-    """داشبورد مدیر: قراردادهای رو به پایان، بدهی، سرویس عقب‌افتاده"""
+    """داشبورد مدیر شبیه تی‌لیفت: آمار، نمودار ۱۲ ماه، هشدارها"""
     conn = get_connection()
     today = today_jalali()
-    # contracts ending in 30 days (string compare works for YYYY/MM/DD jalali roughly)
     expiring = conn.execute("""
         SELECT c.*, p.name as customer_name, b.name as building_name, e.code as elev_code
         FROM contracts c
         LEFT JOIN parties p ON p.id=c.party_id
         LEFT JOIN buildings b ON b.id=c.building_id
         LEFT JOIN elevators e ON e.id=c.elevator_id
-        WHERE c.status='active' AND c.end_date >= ? 
+        WHERE c.status='active' AND c.end_date >= ?
         ORDER BY c.end_date LIMIT 20
     """, (today,)).fetchall()
+    insurance_alert = []
+    try:
+        insurance_alert = conn.execute("""
+            SELECT c.*, p.name as customer_name, b.name as building_name
+            FROM contracts c
+            LEFT JOIN parties p ON p.id=c.party_id
+            LEFT JOIN buildings b ON b.id=c.building_id
+            WHERE c.status='active' AND c.insurance_end IS NOT NULL AND c.insurance_end != ''
+              AND c.insurance_end >= ?
+            ORDER BY c.insurance_end LIMIT 15
+        """, (today,)).fetchall()
+    except Exception:
+        pass
     overdue_visits = conn.execute("""
         SELECT v.*, e.code as elev_code, e.name as elev_name, t.name as tech_name
         FROM service_visits v
@@ -897,6 +909,27 @@ def elev_dashboard():
         WHERE f.status IN ('open','dispatched')
         ORDER BY f.report_date DESC LIMIT 20
     """).fetchall()
+    # نمودار ۱۲ ماه اخیر (بر اساس پیشوند YYYY/MM تاریخ جلالی)
+    chart_labels, chart_services, chart_faults = [], [], []
+    try:
+        y, m = int(today[:4]), int(today[5:7])
+        for i in range(11, -1, -1):
+            mm = m - i
+            yy = y
+            while mm <= 0:
+                mm += 12
+                yy -= 1
+            prefix = f"{yy:04d}/{mm:02d}"
+            chart_labels.append(prefix)
+            chart_services.append(conn.execute(
+                "SELECT COUNT(*) FROM service_visits WHERE status='done' AND (visit_date LIKE ? OR planned_date LIKE ?)",
+                (prefix + "%", prefix + "%")
+            ).fetchone()[0])
+            chart_faults.append(conn.execute(
+                "SELECT COUNT(*) FROM faults WHERE report_date LIKE ?", (prefix + "%",)
+            ).fetchone()[0])
+    except Exception:
+        chart_labels, chart_services, chart_faults = [], [], []
     stats = {
         "complexes": conn.execute("SELECT COUNT(*) FROM complexes").fetchone()[0],
         "buildings": conn.execute("SELECT COUNT(*) FROM buildings").fetchone()[0],
@@ -904,10 +937,16 @@ def elev_dashboard():
         "contracts": conn.execute("SELECT COUNT(*) FROM contracts WHERE status='active'").fetchone()[0],
         "open_faults": conn.execute("SELECT COUNT(*) FROM faults WHERE status IN ('open','dispatched')").fetchone()[0],
         "overdue": len(overdue_visits),
+        "done_month": chart_services[-1] if chart_services else 0,
+        "faults_month": chart_faults[-1] if chart_faults else 0,
     }
     conn.close()
-    return render_template("elev_dashboard.html", stats=stats, expiring=expiring,
-                           overdue_visits=overdue_visits, open_faults=open_faults, today=today)
+    return render_template(
+        "elev_dashboard.html", stats=stats, expiring=expiring,
+        overdue_visits=overdue_visits, open_faults=open_faults, today=today,
+        insurance_alert=insurance_alert,
+        chart_labels=chart_labels, chart_services=chart_services, chart_faults=chart_faults,
+    )
 
 @app.route("/elevators/complexes")
 @login_required
@@ -1380,9 +1419,12 @@ def tech_visit_report(vid):
         photo_note = request.form.get("photo_note") or ""
         rating = request.form.get("rating") or None
         rating_note = request.form.get("rating_note") or ""
+        gps_lat = request.form.get("gps_lat") or None
+        gps_lng = request.form.get("gps_lng") or None
         conn.execute(
-            "UPDATE service_visits SET status='done', visit_date=?, report_text=?, customer_sign=?, photo_note=?, technician_id=COALESCE(technician_id, ?), rating=?, rating_note=? WHERE id=?",
-            (today_jalali(), report, sign, photo_note, session.get("technician_id"), rating, rating_note, vid)
+            """UPDATE service_visits SET status='done', visit_date=?, report_text=?, customer_sign=?, photo_note=?,
+               technician_id=COALESCE(technician_id, ?), rating=?, rating_note=?, gps_lat=?, gps_lng=? WHERE id=?""",
+            (today_jalali(), report, sign, photo_note, session.get("technician_id"), rating, rating_note, gps_lat, gps_lng, vid)
         )
         conn.execute("DELETE FROM visit_checklist WHERE visit_id=?", (vid,))
         for key, label in SERVICE_CHECKLIST:
@@ -1402,8 +1444,83 @@ def tech_visit_report(vid):
 
 
 
-# ==================== پورتال مشتری (شبیه تی‌لیفت) ====================
+# ==================== تمدید قرارداد ====================
 
+@app.route("/elevators/contracts/<int:cid>/renew", methods=["GET", "POST"])
+@login_required
+def elev_contract_renew(cid):
+    """تمدید قرارداد با امضای الکترونیکی"""
+    conn = get_connection()
+    c = conn.execute("""
+        SELECT c.*, p.name as customer_name, b.name as building_name
+        FROM contracts c
+        LEFT JOIN parties p ON p.id=c.party_id
+        LEFT JOIN buildings b ON b.id=c.building_id
+        WHERE c.id=?
+    """, (cid,)).fetchone()
+    if not c:
+        conn.close()
+        flash("قرارداد یافت نشد", "danger")
+        return redirect(url_for("elev_contracts"))
+    if request.method == "POST":
+        new_end = (request.form.get("new_end_date") or "").strip()
+        sign = (request.form.get("renew_sign") or "").strip()
+        amount = float(request.form.get("amount") or c["amount"] or 0)
+        if not new_end or not sign:
+            flash("تاریخ پایان جدید و امضا الزامی است", "danger")
+            conn.close()
+            return redirect(url_for("elev_contract_renew", cid=cid))
+        conn.execute(
+            """UPDATE contracts SET end_date=?, amount=?, renew_sign=?, renewed_at=?, status='active' WHERE id=?""",
+            (new_end, amount, sign, datetime.now().isoformat(), cid)
+        )
+        # سرویس اول دوره جدید
+        first = (request.form.get("first_service") or today_jalali()).strip()
+        if c["elevator_id"]:
+            conn.execute(
+                """INSERT INTO service_visits (contract_id, elevator_id, planned_date, visit_type, status, amount, created_at)
+                   VALUES (?,?,?,?,?,?,?)""",
+                (cid, c["elevator_id"], first, "periodic", "planned", amount / 12, datetime.now().isoformat())
+            )
+        conn.commit()
+        conn.close()
+        flash(f"قرارداد تا {new_end} تمدید و امضا ثبت شد.", "success")
+        return redirect(url_for("elev_contracts"))
+    conn.close()
+    return render_template("elev_renew.html", c=c, today=today_jalali())
+
+
+
+@app.route("/manifest.json")
+def pwa_manifest():
+    return jsonify({
+        "name": "آریو سرویس آسانسور",
+        "short_name": "آریو",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#f0fdfa",
+        "theme_color": "#0f766e",
+        "lang": "fa",
+        "dir": "rtl",
+        "icons": [{"src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml"}]
+    })
+
+@app.route("/sw.js")
+def service_worker():
+    js = """
+const CACHE='ario-v9';
+self.addEventListener('install', e=>{
+  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/','/login','/tech','/manifest.json'])));
+  self.skipWaiting();
+});
+self.addEventListener('fetch', e=>{
+  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>caches.match('/'))));
+});
+"""
+    return app.response_class(js, mimetype="application/javascript")
+
+
+# ==================== پورتال مشتری (شبیه تی‌لیفت) ====================
 @app.route("/portal/<token>")
 def customer_portal(token):
     """مشاهده قرارداد، بیمه، سرویس‌ها و اعلام خرابی توسط کارفرما"""
