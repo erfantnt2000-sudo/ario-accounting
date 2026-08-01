@@ -83,6 +83,18 @@
             color: #fff;
             text-decoration: none;
         }
+        
+        .nav-group { margin-bottom: 8px; }
+        .nav-group-title {
+            padding: 10px 18px 4px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            opacity: 0.55;
+            font-weight: 700;
+        }
+        body.sidebar-open { overflow: hidden; }
+
         .sidebar .user-info {
             padding: 14px 18px;
             font-size: 0.82rem;
@@ -131,12 +143,13 @@
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.45);
+            background: rgba(0,0,0,0.5);
             z-index: 999;
-            opacity: 0;
-            transition: opacity .3s;
+            border: none;
+            padding: 0;
+            cursor: pointer;
         }
-        .sidebar-overlay.show { display: block; opacity: 1; }
+        .sidebar-overlay.show { display: block; }
 
         /* Cards */
         .card {
@@ -281,10 +294,14 @@
             }
 
             .sidebar {
-                transform: translateX(105%);
+                transform: translateX(110%) !important;
                 width: min(300px, 88vw);
+                -webkit-transform: translateX(110%);
             }
-            .sidebar.open { transform: translateX(0); }
+            .sidebar.open {
+                transform: translateX(0) !important;
+                -webkit-transform: translateX(0) !important;
+            }
             .main { margin-right: 0 !important; width: 100%; }
             .topbar {
                 padding: 10px 12px;
@@ -370,36 +387,43 @@
                 <small>Ario Accounting</small>
             </div>
             <nav>
-                <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">📊 <span>داشبورد</span></a>
-                <a href="{{ url_for('accounts') }}" class="{% if request.endpoint and 'account' in request.endpoint %}active{% endif %}">📒 <span>کدینگ حساب‌ها</span></a>
-                <a href="{{ url_for('vouchers') }}" class="{% if request.endpoint and 'voucher' in request.endpoint %}active{% endif %}">📝 <span>اسناد حسابداری</span></a>
-                <a href="{{ url_for('customers') }}" class="{% if request.endpoint and 'customer' in request.endpoint %}active{% endif %}">👥 <span>لیست مشتریان</span></a>
-                <a href="{{ url_for('appointments_today') }}" class="{% if request.endpoint and 'appointment' in request.endpoint and 'noshow' not in request.endpoint %}active{% endif %}">📅 <span>نوبت امروز</span></a>
-                <a href="{{ url_for('elev_dashboard') }}" class="{% if request.endpoint and request.endpoint.startswith('elev_') %}active{% endif %}">🛗 <span>داشبورد آسانسور</span></a>
-                <a href="{{ url_for('elev_list') }}">📁 <span>پرونده آسانسور</span></a>
-                <a href="{{ url_for('elev_buildings') }}">🏢 <span>ساختمان‌ها</span></a>
-                <a href="{{ url_for('elev_contracts') }}">📄 <span>قرارداد سرویس</span></a>
-                <a href="{{ url_for('elev_visits') }}">🛠️ <span>برنامه سرویس</span></a>
-                <a href="{{ url_for('elev_faults') }}">⚠️ <span>خرابی و اعزام</span></a>
-                <a href="{{ url_for('elev_repairs') }}">🔧 <span>تاریخچه تعمیرات</span></a>
-                <a href="{{ url_for('elev_technicians') }}">👷 <span>سرویس‌کاران</span></a>
-                <a href="{{ url_for('elev_profit') }}">💹 <span>سود قرارداد/ساختمان</span></a>
-                <a href="{{ url_for('appointments_noshow') }}" class="{% if request.endpoint == 'appointments_noshow' %}active{% endif %}">❌ <span>غایبین ماه</span></a>
-                <a href="{{ url_for('payments_list') }}" class="{% if request.endpoint and 'payment' in request.endpoint %}active{% endif %}">💰 <span>پرداخت و بدهی</span></a>
-                <a href="{{ url_for('parties') }}" class="{% if request.endpoint and 'party' in request.endpoint %}active{% endif %}">👤 <span>اشخاص (قدیمی)</span></a>
-                <a href="{{ url_for('products') }}" class="{% if request.endpoint and 'product' in request.endpoint %}active{% endif %}">📦 <span>کالا و انبار</span></a>
-                <a href="{{ url_for('invoices') }}" class="{% if request.endpoint and 'invoice' in request.endpoint %}active{% endif %}">🧾 <span>فاکتورها</span></a>
-                <a href="{{ url_for('logout') }}">🚪 <span>خروج</span></a>
+                <div class="nav-group">
+                    <div class="nav-group-title">اصلی</div>
+                    <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">📊 <span>داشبورد</span></a>
+                    <a href="{{ url_for('customers') }}" class="{% if request.endpoint and 'customer' in request.endpoint %}active{% endif %}">👥 <span>مشتریان</span></a>
+                    <a href="{{ url_for('appointments_today') }}" class="{% if request.endpoint == 'appointments_today' %}active{% endif %}">📅 <span>نوبت امروز</span></a>
+                    <a href="{{ url_for('payments_list') }}" class="{% if request.endpoint and 'payment' in request.endpoint %}active{% endif %}">💰 <span>پرداخت و بدهی</span></a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-title">آسانسور</div>
+                    <a href="{{ url_for('elev_dashboard') }}" class="{% if request.endpoint == 'elev_dashboard' %}active{% endif %}">🛗 <span>داشبورد آسانسور</span></a>
+                    <a href="{{ url_for('elev_list') }}" class="{% if request.endpoint in ['elev_list','elev_add'] %}active{% endif %}">📁 <span>پرونده آسانسور</span></a>
+                    <a href="{{ url_for('elev_buildings') }}" class="{% if request.endpoint and 'building' in request.endpoint %}active{% endif %}">🏢 <span>ساختمان‌ها</span></a>
+                    <a href="{{ url_for('elev_contracts') }}" class="{% if request.endpoint and 'contract' in request.endpoint %}active{% endif %}">📄 <span>قراردادها</span></a>
+                    <a href="{{ url_for('elev_visits') }}" class="{% if request.endpoint and 'visit' in request.endpoint %}active{% endif %}">🛠️ <span>برنامه سرویس</span></a>
+                    <a href="{{ url_for('elev_faults') }}" class="{% if request.endpoint and 'fault' in request.endpoint %}active{% endif %}">⚠️ <span>خرابی و اعزام</span></a>
+                    <a href="{{ url_for('elev_technicians') }}" class="{% if request.endpoint and 'tech' in request.endpoint %}active{% endif %}">👷 <span>سرویس‌کاران</span></a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-title">حسابداری</div>
+                    <a href="{{ url_for('accounts') }}" class="{% if request.endpoint and 'account' in request.endpoint %}active{% endif %}">📒 <span>حساب‌ها</span></a>
+                    <a href="{{ url_for('vouchers') }}" class="{% if request.endpoint and 'voucher' in request.endpoint %}active{% endif %}">📝 <span>اسناد</span></a>
+                    <a href="{{ url_for('products') }}" class="{% if request.endpoint and 'product' in request.endpoint %}active{% endif %}">📦 <span>کالا و انبار</span></a>
+                    <a href="{{ url_for('invoices') }}" class="{% if request.endpoint and 'invoice' in request.endpoint %}active{% endif %}">🧾 <span>فاکتورها</span></a>
+                </div>
+                <div class="nav-group">
+                    <a href="{{ url_for('logout') }}">🚪 <span>خروج</span></a>
+                </div>
             </nav>
             <div class="user-info">
                 👤 {{ session.get('full_name', 'کاربر') }}
             </div>
         </aside>
         <div class="main">
-            <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+            <div class="sidebar-overlay" id="sidebarOverlay" role="button" aria-label="بستن منو"></div>
         <div class="topbar">
                 <div style="display:flex;align-items:center;gap:10px;">
-                    <button type="button" class="menu-btn" id="menuBtn" onclick="toggleSidebar()" aria-label="منو">☰</button>
+                    <button type="button" class="menu-btn" id="menuBtn" aria-label="منو" aria-expanded="false">☰</button>
                     <div>{% block page_title %}{% endblock %}</div>
                 </div>
                 <div style="font-size:0.85rem;color:#7f8c8d;">تاریخ امروز: {{ today if today is defined else '' }}</div>
@@ -415,20 +439,52 @@
                 {% block content %}{% endblock %}
             </div>
             <div class="footer-note">
-                نرم‌افزار حسابداری آریو — نسخه ۴ — آسانسور | تمامی حقوق محفوظ است
+                نرم‌افزار حسابداری آریو — نسخه ۵ — موبایل | تمامی حقوق محفوظ است
             </div>
         </div>
     </div>
     {% block extra_js %}{% endblock %}
 
     <script>
-    // auto-wrap tables for horizontal scroll on mobile
-    document.querySelectorAll('.card > table, .content > table').forEach(function(tbl) {
-        if (tbl.parentElement.classList.contains('table-wrap')) return;
-        var w = document.createElement('div');
-        w.className = 'table-wrap';
-        tbl.parentNode.insertBefore(w, tbl);
-        w.appendChild(tbl);
+    function toggleSidebar() {
+        var s = document.querySelector('.sidebar');
+        var o = document.getElementById('sidebarOverlay');
+        if (!s) return;
+        var open = s.classList.toggle('open');
+        if (o) o.classList.toggle('show', open);
+        document.body.classList.toggle('sidebar-open', open);
+    }
+    function closeSidebar() {
+        var s = document.querySelector('.sidebar');
+        var o = document.getElementById('sidebarOverlay');
+        if (s) s.classList.remove('open');
+        if (o) o.classList.remove('show');
+        document.body.classList.remove('sidebar-open');
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        var btn = document.getElementById('menuBtn');
+        if (btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleSidebar();
+            });
+        }
+        var ov = document.getElementById('sidebarOverlay');
+        if (ov) ov.addEventListener('click', closeSidebar);
+        document.querySelectorAll('.sidebar nav a').forEach(function(a) {
+            a.addEventListener('click', function() {
+                if (window.innerWidth <= 900) closeSidebar();
+            });
+        });
+        // auto-wrap tables for mobile horizontal scroll
+        document.querySelectorAll('.card > table, .content > table').forEach(function(tbl) {
+            if (tbl.parentElement && tbl.parentElement.classList.contains('table-wrap')) return;
+            var w = document.createElement('div');
+            w.className = 'table-wrap';
+            tbl.parentNode.insertBefore(w, tbl);
+            w.appendChild(tbl);
+        });
     });
     </script>
 
