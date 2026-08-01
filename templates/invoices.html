@@ -15,6 +15,7 @@
                 <th>تاریخ</th>
                 <th>طرف حساب</th>
                 <th>مبلغ نهایی</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
@@ -25,9 +26,14 @@
                 <td>{{ i.invoice_date }}</td>
                 <td>{{ i.party_name or '—' }}</td>
                 <td class="text-left">{{ "{:,.0f}".format(i.final_amount) }}</td>
+                <td>
+                    {% if i.invoice_type == 'sale' %}
+                    <a href="{{ url_for('invoice_view', iid=i.id) }}" class="btn btn-sm btn-secondary">👁️ مشاهده / چاپ</a>
+                    {% endif %}
+                </td>
             </tr>
             {% else %}
-            <tr><td colspan="5" style="text-align:center;">فاکتوری ثبت نشده.</td></tr>
+            <tr><td colspan="6" style="text-align:center;">فاکتوری ثبت نشده.</td></tr>
             {% endfor %}
         </tbody>
     </table>

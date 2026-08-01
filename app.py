@@ -375,25 +375,33 @@ def invoice_sale():
         product_ids = request.form.getlist("product_id[]")
         qtys = request.form.getlist("qty[]")
         prices = request.form.getlist("unit_price[]")
+        line_discounts = request.form.getlist("line_discount[]")
+        tax_percent = float(request.form.get("tax_percent") or 0)
+        invoice_discount = float(request.form.get("invoice_discount") or 0)
 
         if not party_id or not product_ids:
             flash("مشتری و حداقل یک کالا الزامی است.", "danger")
             return redirect(url_for("invoice_sale"))
 
-        total = 0
+        subtotal = 0
         lines_data = []
         for i, pid in enumerate(product_ids):
             if not pid:
                 continue
             q = float(qtys[i] or 0)
             p = float(prices[i] or 0)
-            amt = q * p
-            total += amt
-            lines_data.append((int(pid), q, p, amt))
+            ld = float(line_discounts[i] or 0) if i < len(line_discounts) else 0
+            amt = max(q * p - ld, 0)
+            subtotal += amt
+            lines_data.append((int(pid), q, p, ld, amt))
 
-        if total == 0:
+        if subtotal == 0:
             flash("مبلغ فاکتور صفر است.", "danger")
             return redirect(url_for("invoice_sale"))
+
+        after_discount = max(subtotal - invoice_discount, 0)
+        tax_amount = round(after_discount * tax_percent / 100)
+        final_total = after_discount + tax_amount
 
         conn = get_connection()
         cur = conn.cursor()
@@ -401,14 +409,14 @@ def invoice_sale():
         # ثبت فاکتور
         cur.execute(
             """INSERT INTO invoices (invoice_no, invoice_type, invoice_date, party_id, description,
-               total_amount, final_amount, created_at) VALUES (?,?,?,?,?,?,?,?)""",
-            (inv_no, "sale", idate, party_id, desc, total, total, datetime.now().isoformat())
+               total_amount, discount, tax, final_amount, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (inv_no, "sale", idate, party_id, desc, subtotal, invoice_discount, tax_amount, final_total, datetime.now().isoformat())
         )
         iid = cur.lastrowid
-        for pid, q, p, amt in lines_data:
+        for pid, q, p, ld, amt in lines_data:
             cur.execute(
-                "INSERT INTO invoice_lines (invoice_id, product_id, qty, unit_price, amount) VALUES (?,?,?,?,?)",
-                (iid, pid, q, p, amt)
+                "INSERT INTO invoice_lines (invoice_id, product_id, qty, unit_price, discount, amount) VALUES (?,?,?,?,?,?)",
+                (iid, pid, q, p, ld, amt)
             )
             # کاهش موجودی
             cur.execute("UPDATE products SET stock_qty = stock_qty - ? WHERE id=?", (q, pid))
@@ -423,24 +431,50 @@ def invoice_sale():
         # بدهکار: بدهکاران
         cur.execute(
             "INSERT INTO voucher_lines (voucher_id, account_code, description, debit, credit) VALUES (?,?,?,?,?)",
-            (vid, "11201", f"فروش به مشتری - {inv_no}", total, 0)
+            (vid, "11201", f"فروش به مشتری - {inv_no}", final_total, 0)
         )
         # بستانکار: فروش
         cur.execute(
             "INSERT INTO voucher_lines (voucher_id, account_code, description, debit, credit) VALUES (?,?,?,?,?)",
-            (vid, "4101", f"فروش کالا - {inv_no}", 0, total)
+            (vid, "4101", f"فروش کالا - {inv_no}", 0, subtotal - invoice_discount)
         )
+        if tax_amount:
+            cur.execute(
+                "INSERT INTO voucher_lines (voucher_id, account_code, description, debit, credit) VALUES (?,?,?,?,?)",
+                (vid, "21301", f"مالیات بر ارزش افزوده - {inv_no}", 0, tax_amount)
+            )
         cur.execute("UPDATE invoices SET voucher_id=? WHERE id=?", (vid, iid))
         conn.commit()
         conn.close()
         flash(f"فاکتور فروش {inv_no} و سند مربوطه ثبت شد.", "success")
-        return redirect(url_for("invoices"))
+        return redirect(url_for("invoice_view", iid=iid))
 
     conn = get_connection()
-    parties = conn.execute("SELECT id, name FROM parties WHERE party_type IN ('customer','both')").fetchall()
+    parties = conn.execute("SELECT id, name, phone, address FROM parties WHERE party_type IN ('customer','both')").fetchall()
     products = conn.execute("SELECT id, code, name, sell_price, stock_qty, unit FROM products WHERE is_active=1").fetchall()
     conn.close()
-    return render_template("invoice_sale.html", parties=parties, products=products, today=today_jalali())
+    next_no = f"S-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    return render_template("invoice_sale.html", parties=parties, products=products, today=today_jalali(), next_no=next_no)
+
+@app.route("/invoices/view/<int:iid>")
+@login_required
+def invoice_view(iid):
+    conn = get_connection()
+    inv = conn.execute("""
+        SELECT i.*, p.name as party_name, p.phone as party_phone, p.address as party_address, p.national_id
+        FROM invoices i LEFT JOIN parties p ON p.id = i.party_id
+        WHERE i.id = ?
+    """, (iid,)).fetchone()
+    if not inv:
+        flash("فاکتور یافت نشد.", "danger")
+        return redirect(url_for("invoices"))
+    lines = conn.execute("""
+        SELECT il.*, pr.code as product_code, pr.name as product_name, pr.unit
+        FROM invoice_lines il LEFT JOIN products pr ON pr.id = il.product_id
+        WHERE il.invoice_id = ?
+    """, (iid,)).fetchall()
+    conn.close()
+    return render_template("invoice_view.html", inv=inv, lines=lines, today=today_jalali())
 
 # ---------------- گزارش‌ها ----------------
 @app.route("/reports/trial-balance")
@@ -905,6 +939,9 @@ def elev_visit_add():
     )
     conn.commit(); conn.close()
     flash("بازدید برنامه‌ریزی شد.", "success")
+    next_url = request.form.get("next")
+    if next_url:
+        return redirect(next_url)
     return redirect(url_for("elev_visits"))
 
 @app.route("/elevators/visits/done/<int:vid>", methods=["POST"])
@@ -919,6 +956,105 @@ def elev_visit_done(vid):
     conn.commit(); conn.close()
     flash("گزارش بازدید ثبت شد.", "success")
     return redirect(url_for("elev_visits"))
+
+@app.route("/elevators/today")
+@login_required
+def elev_today():
+    """نوبت امروز آسانسور: ورود تاریخ/جستجوی مشتری و نمایش سرویس‌های آن روز با امکان تیک زدن"""
+    date_q = (request.args.get("date") or today_jalali()).strip()
+    q = (request.args.get("q") or "").strip()
+    conn = get_connection()
+    sql = """
+        SELECT v.*, e.code as elev_code, e.name as elev_name, e.capacity, e.stops,
+               b.name as building_name, b.address as building_address,
+               cx.name as complex_name,
+               p.name as customer_name, p.phone as customer_phone,
+               t.name as tech_name, c.contract_no
+        FROM service_visits v
+        LEFT JOIN elevators e ON e.id = v.elevator_id
+        LEFT JOIN buildings b ON b.id = e.building_id
+        LEFT JOIN complexes cx ON cx.id = b.complex_id
+        LEFT JOIN contracts c ON c.id = v.contract_id
+        LEFT JOIN parties p ON p.id = COALESCE(c.party_id, b.party_id)
+        LEFT JOIN technicians t ON t.id = v.technician_id
+        WHERE v.planned_date = ?
+    """
+    params = [date_q]
+    if q:
+        sql += " AND (p.name LIKE ? OR b.name LIKE ? OR e.code LIKE ? OR e.name LIKE ? OR cx.name LIKE ?)"
+        like = f"%{q}%"
+        params += [like, like, like, like, like]
+    sql += " ORDER BY (CASE WHEN v.status='done' THEN 1 ELSE 0 END), b.name, e.code"
+    rows = conn.execute(sql, params).fetchall()
+
+    stats = {"total": len(rows)}
+    stats["done"] = sum(1 for r in rows if r["status"] == "done")
+    stats["pending"] = stats["total"] - stats["done"]
+
+    elevators = conn.execute("""
+        SELECT e.id, e.code, e.name, b.name as building_name
+        FROM elevators e LEFT JOIN buildings b ON b.id = e.building_id
+        WHERE e.status='active' ORDER BY b.name, e.code
+    """).fetchall()
+    techs = conn.execute("SELECT id,name FROM technicians WHERE is_active=1 ORDER BY name").fetchall()
+    contracts = conn.execute("SELECT id, contract_no FROM contracts WHERE status='active' ORDER BY contract_no").fetchall()
+    conn.close()
+    return render_template("elev_today.html", rows=rows, stats=stats, date_q=date_q, q=q,
+                           elevators=elevators, techs=techs, contracts=contracts, today=today_jalali())
+
+@app.route("/elevators/visits/quick_done/<int:vid>", methods=["POST"])
+@login_required
+def elev_visit_quick_done(vid):
+    """تیک زدن سریع انجام سرویس از صفحه نوبت امروز"""
+    conn = get_connection()
+    row = conn.execute("SELECT status, planned_date FROM service_visits WHERE id=?", (vid,)).fetchone()
+    if row:
+        if row["status"] == "done":
+            conn.execute("UPDATE service_visits SET status='planned', visit_date=NULL WHERE id=?", (vid,))
+        else:
+            conn.execute(
+                "UPDATE service_visits SET status='done', visit_date=? WHERE id=?",
+                (today_jalali(), vid)
+            )
+        conn.commit()
+    conn.close()
+    next_url = request.form.get("next") or url_for("elev_today")
+    return redirect(next_url)
+
+@app.route("/elevators/missed")
+@login_required
+def elev_missed():
+    """لیست سرویس‌هایی که در تاریخ برنامه‌ریزی‌شده انجام نشده‌اند (نوبت‌های عقب‌افتاده)"""
+    today = today_jalali()
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT v.*, e.code as elev_code, e.name as elev_name,
+               b.name as building_name, b.address as building_address,
+               p.name as customer_name, p.phone as customer_phone,
+               t.name as tech_name, c.contract_no
+        FROM service_visits v
+        LEFT JOIN elevators e ON e.id = v.elevator_id
+        LEFT JOIN buildings b ON b.id = e.building_id
+        LEFT JOIN contracts c ON c.id = v.contract_id
+        LEFT JOIN parties p ON p.id = COALESCE(c.party_id, b.party_id)
+        LEFT JOIN technicians t ON t.id = v.technician_id
+        WHERE v.status = 'planned' AND v.planned_date < ?
+        ORDER BY v.planned_date DESC
+    """, (today,)).fetchall()
+    conn.close()
+    return render_template("elev_missed.html", rows=rows, today=today)
+
+@app.route("/elevators/visits/reschedule/<int:vid>", methods=["POST"])
+@login_required
+def elev_visit_reschedule(vid):
+    """تعیین تاریخ جدید برای نوبت انجام‌نشده"""
+    new_date = request.form.get("new_date") or today_jalali()
+    conn = get_connection()
+    conn.execute("UPDATE service_visits SET planned_date=? WHERE id=?", (new_date, vid))
+    conn.commit()
+    conn.close()
+    flash("نوبت به تاریخ جدید موکول شد.", "success")
+    return redirect(url_for("elev_missed"))
 
 @app.route("/elevators/faults")
 @login_required

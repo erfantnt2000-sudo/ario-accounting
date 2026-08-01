@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}فاکتور {{ inv.invoice_no }} | حسابداری آریو{% endblock %}
+{% block page_title %}<strong>مشاهده فاکتور فروش</strong>{% endblock %}
+{% block extra_css %}
+<style>
+    .print-sheet { background:#fff; }
+    .print-head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid var(--primary); padding-bottom:14px; margin-bottom:14px; flex-wrap:wrap; gap:10px; }
+    .print-head .co-name { font-size:1.25rem; font-weight:800; color:var(--primary); }
+    .print-head .inv-meta { text-align:left; font-size:.85rem; color:var(--muted); }
+    .print-head .inv-meta b { color:var(--text); }
+    .party-box { background:#f8fafc; border-radius:9px; padding:12px 16px; margin-bottom:16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:6px; font-size:.9rem; }
+    .print-table th, .print-table td { text-align:center; }
+    .print-table td:nth-child(2), .print-table th:nth-child(2) { text-align:right; }
+    .print-totals { display:flex; justify-content:flex-end; margin-top:14px; }
+    .print-totals-inner { width:100%; max-width:340px; }
+    .print-totals-inner .line { display:flex; justify-content:space-between; padding:5px 0; font-size:.9rem; border-bottom:1px dashed var(--border); }
+    .print-totals-inner .grand { font-size:1.1rem; font-weight:800; color:var(--primary); border-bottom:none; border-top:2px solid var(--primary); margin-top:4px; padding-top:8px; }
+    .words-row { margin-top:10px; font-size:.85rem; background:#f8fafc; border-radius:8px; padding:8px 12px; }
+    .sign-row { display:flex; justify-content:space-between; margin-top:40px; }
+    .sign-box { text-align:center; width:180px; }
+    .sign-box .line { border-top:1px solid var(--border); margin-top:36px; padding-top:6px; font-size:.8rem; color:var(--muted); }
+    @media print {
+        .no-print { display:none !important; }
+        .card { box-shadow:none; border:none; padding:0; }
+        body { background:#fff; }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="card no-print" style="display:flex;gap:10px;flex-wrap:wrap;">
+    <button onclick="window.print()" class="btn btn-primary">🖨️ چاپ فاکتور</button>
+    <a href="{{ url_for('invoices') }}" class="btn btn-secondary">← بازگشت به لیست فاکتورها</a>
+</div>
+
+<div class="card print-sheet">
+    <div class="print-head">
+        <div>
+            <div class="co-name">حسابداری آریو</div>
+            <div style="font-size:.8rem;color:var(--muted);">فاکتور رسمی فروش کالا / خدمات</div>
+        </div>
+        <div class="inv-meta">
+            <div>شماره فاکتور: <b>{{ inv.invoice_no }}</b></div>
+            <div>تاریخ: <b>{{ inv.invoice_date }}</b></div>
+        </div>
+    </div>
+
+    <div class="party-box">
+        <div>👤 خریدار: <b>{{ inv.party_name or '—' }}</b></div>
+        <div>📞 تلفن: <b>{{ inv.party_phone or '—' }}</b></div>
+        <div>📍 آدرس: <b>{{ inv.party_address or '—' }}</b></div>
+    </div>
+
+    <div class="table-wrap">
+    <table class="print-table">
+        <thead>
+            <tr>
+                <th style="width:5%">ردیف</th>
+                <th style="width:30%">شرح کالا / خدمات</th>
+                <th style="width:10%">تعداد</th>
+                <th style="width:10%">واحد</th>
+                <th style="width:15%">قیمت واحد</th>
+                <th style="width:13%">تخفیف</th>
+                <th style="width:17%">جمع</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in lines %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ l.product_name or l.description or '—' }}{% if l.product_code %} <span style="color:var(--muted);font-size:.78rem;">({{ l.product_code }})</span>{% endif %}</td>
+                <td>{{ l.qty }}</td>
+                <td>{{ l.unit or 'عدد' }}</td>
+                <td class="text-left">{{ "{:,.0f}".format(l.unit_price) }}</td>
+                <td class="text-left">{{ "{:,.0f}".format(l.discount or 0) }}</td>
+                <td class="text-left"><strong>{{ "{:,.0f}".format(l.amount) }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+
+    <div class="print-totals">
+        <div class="print-totals-inner">
+            <div class="line"><span>جمع کل اقلام:</span><span class="text-left">{{ "{:,.0f}".format(inv.total_amount) }}</span></div>
+            <div class="line"><span>تخفیف:</span><span class="text-left">{{ "{:,.0f}".format(inv.discount or 0) }}</span></div>
+            <div class="line"><span>مالیات بر ارزش افزوده:</span><span class="text-left">{{ "{:,.0f}".format(inv.tax or 0) }}</span></div>
+            <div class="line grand"><span>مبلغ نهایی:</span><span class="text-left">{{ "{:,.0f}".format(inv.final_amount) }} ریال</span></div>
+        </div>
+    </div>
+
+    {% if inv.description %}
+    <div class="words-row">شرح فاکتور: {{ inv.description }}</div>
+    {% endif %}
+
+    <div class="sign-row no-print-borders">
+        <div class="sign-box"><div class="line">امضا و مهر فروشنده</div></div>
+        <div class="sign-box"><div class="line">امضا خریدار</div></div>
+    </div>
+</div>
+{% endblock %}

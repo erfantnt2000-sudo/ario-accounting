@@ -233,6 +233,15 @@ Env vars: `PORT`, `SECRET_KEY`, optional `RENDER=true`.
 
 ---
 
+## 11b. Changelog — v6 update
+
+- **Sales invoice (`invoice_sale.html` + `invoice_sale()`):** redesigned with line-level discount, invoice-level discount, VAT (`tax_percent`), live JS totals, Persian amount-in-words, and a new printable view `invoice_view.html` / `invoice_view(iid)` route (linked from `invoices.html`). `invoice_lines.discount`, `invoices.discount`, `invoices.tax` (already existed in schema) are now actually populated.
+- **Elevator "today's appointments" (`elev_today.html` + `elev_today()` at `/elevators/today`):** enter a date (+ optional customer/building search) to see that day's `service_visits` with customer/building/phone/technician details and a one-click "done" toggle (`elev_visit_quick_done`). This mirrors the existing generic `appointments_today` but is elevator/`service_visits`-specific.
+- **Missed/incomplete list (`elev_missed.html` + `elev_missed()` at `/elevators/missed`):** any `service_visits` row with `status='planned'` and `planned_date < today` shows up here automatically, with "mark done" and "reschedule to new date" (`elev_visit_reschedule`) actions.
+- `elev_visit_add` now accepts an optional `next` form field to redirect back to the calling page (used by `elev_today.html`).
+- Nav links for both new elevator pages added to `base.html` under the "آسانسور" group. Mobile hamburger menu (`toggleSidebar`/`closeSidebar`/`menuBtn`/`sidebarOverlay`) untouched.
+- Full route smoke test (all GET pages) + POST smoke test (every "add" form across accounting + elevator modules) passed with a stub `jdatetime` during dev; no 4xx/5xx.
+
 ## 12. Smoke test snippet (for AI after edits)
 
 ```python

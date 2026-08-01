@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}سرویس‌های انجام‌نشده | حسابداری آریو{% endblock %}
+{% block page_title %}<strong>لیست سرویس‌های انجام‌نشده (عقب‌افتاده)</strong>{% endblock %}
+{% block content %}
+
+<div class="card">
+    <p style="color:#7f8c8d;">
+        این لیست شامل نوبت‌هایی است که تاریخ برنامه‌ریزی‌شدهٔ آن‌ها گذشته ولی هنوز تیک «انجام شد» نخورده‌اند.
+        می‌توانید همین‌جا سرویس را انجام‌شده ثبت کنید یا برای تاریخ جدید موکول (ریشیدول) کنید.
+    </p>
+    <a href="{{ url_for('elev_today') }}" class="btn btn-secondary">← بازگشت به نوبت امروز</a>
+</div>
+
+<div class="card">
+    <h2>سرویس‌های عقب‌افتاده ({{ rows|length }} مورد)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>تاریخ برنامه</th>
+                <th>مشتری</th>
+                <th>ساختمان</th>
+                <th>آسانسور</th>
+                <th>تلفن</th>
+                <th>سرویس‌کار</th>
+                <th>عملیات</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in rows %}
+            <tr>
+                <td class="text-left"><span class="badge" style="background:#fde2e2;color:#c0392b;">{{ v.planned_date }}</span></td>
+                <td><strong>{{ v.customer_name or '—' }}</strong></td>
+                <td>{{ v.building_name or '—' }}</td>
+                <td>{{ v.elev_code }} {% if v.elev_name %}— {{ v.elev_name }}{% endif %}</td>
+                <td class="text-left">{{ v.customer_phone or '—' }}</td>
+                <td>{{ v.tech_name or '—' }}</td>
+                <td>
+                    <div class="mobile-stack-form" style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <form method="post" action="{{ url_for('elev_visit_quick_done', vid=v.id) }}" style="display:inline;">
+                            <input type="hidden" name="next" value="{{ url_for('elev_missed') }}">
+                            <button type="submit" class="btn btn-sm btn-success">✓ انجام شد</button>
+                        </form>
+                        <form method="post" action="{{ url_for('elev_visit_reschedule', vid=v.id) }}" style="display:flex;gap:4px;">
+                            <input type="text" name="new_date" class="form-control" style="width:110px;" value="{{ today }}" placeholder="تاریخ جدید">
+                            <button type="submit" class="btn btn-sm btn-primary">موکول کن</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" style="text-align:center;">✅ همه سرویس‌ها به‌موقع انجام شده‌اند.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

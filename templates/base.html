@@ -400,7 +400,9 @@
                     <a href="{{ url_for('elev_list') }}" class="{% if request.endpoint in ['elev_list','elev_add'] %}active{% endif %}">📁 <span>پرونده آسانسور</span></a>
                     <a href="{{ url_for('elev_buildings') }}" class="{% if request.endpoint and 'building' in request.endpoint %}active{% endif %}">🏢 <span>ساختمان‌ها</span></a>
                     <a href="{{ url_for('elev_contracts') }}" class="{% if request.endpoint and 'contract' in request.endpoint %}active{% endif %}">📄 <span>قراردادها</span></a>
-                    <a href="{{ url_for('elev_visits') }}" class="{% if request.endpoint and 'visit' in request.endpoint %}active{% endif %}">🛠️ <span>برنامه سرویس</span></a>
+                    <a href="{{ url_for('elev_visits') }}" class="{% if request.endpoint == 'elev_visits' %}active{% endif %}">🛠️ <span>برنامه سرویس</span></a>
+                    <a href="{{ url_for('elev_today') }}" class="{% if request.endpoint == 'elev_today' %}active{% endif %}">📅 <span>نوبت امروز آسانسور</span></a>
+                    <a href="{{ url_for('elev_missed') }}" class="{% if request.endpoint == 'elev_missed' %}active{% endif %}">🚫 <span>انجام‌نشده‌ها</span></a>
                     <a href="{{ url_for('elev_faults') }}" class="{% if request.endpoint and 'fault' in request.endpoint %}active{% endif %}">⚠️ <span>خرابی و اعزام</span></a>
                     <a href="{{ url_for('elev_technicians') }}" class="{% if request.endpoint and 'tech' in request.endpoint %}active{% endif %}">👷 <span>سرویس‌کاران</span></a>
                 </div>
