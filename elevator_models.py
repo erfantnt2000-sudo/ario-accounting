@@ -176,6 +176,15 @@ def init_elevator_tables():
     """)
 
     c.execute("""
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            body TEXT,
+            target_role TEXT,
+            technician_id INTEGER,
+            is_read INTEGER DEFAULT 0,
+            created_at TEXT
+        );
         CREATE TABLE IF NOT EXISTS visit_checklist (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             visit_id INTEGER NOT NULL,
@@ -199,6 +208,7 @@ def init_elevator_tables():
         ("buildings", "lat", "TEXT"),
         ("buildings", "lng", "TEXT"),
         ("buildings", "map_link", "TEXT"),
+        ("buildings", "region", "TEXT"),
         ("contracts", "insurance_end", "TEXT"),
         ("contracts", "insurance_no", "TEXT"),
         ("contracts", "check_due", "TEXT"),

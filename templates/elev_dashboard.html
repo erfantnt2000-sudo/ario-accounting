@@ -1,116 +1,153 @@
 {% extends "base.html" %}
-{% block title %}داشبورد آسانسور{% endblock %}
-{% block page_title %}<strong>داشبورد مدیریت سرویس</strong>{% endblock %}
+{% block title %}داشبورد{% endblock %}
+{% block page_title %}<strong>داشبورد</strong>{% endblock %}
 {% block extra_css %}
 <style>
-.chart-wrap { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
-@media(max-width:800px){ .chart-wrap{grid-template-columns:1fr;} }
-.bar-chart { display:flex; align-items:flex-end; gap:4px; height:140px; padding:8px 4px; background:#f8fafc; border-radius:10px; }
-.bar-chart .bar { flex:1; background:linear-gradient(180deg,#14b8a6,#0f766e); border-radius:4px 4px 0 0; min-width:6px; position:relative; }
-.bar-chart .bar.fault { background:linear-gradient(180deg,#fb7185,#e11d48); }
-.bar-chart .bar span { display:none; }
-.chart-labels { display:flex; gap:4px; font-size:0.65rem; color:var(--muted); margin-top:4px; }
-.chart-labels span { flex:1; text-align:center; overflow:hidden; }
+.dash-top { display:grid; grid-template-columns:1fr; gap:14px; }
+@media(min-width:1000px){
+  .dash-top { grid-template-columns: 280px 1fr; }
+}
+.chart-card { background:#fff; border-radius:14px; border:1px solid var(--border); padding:16px; }
+.chart-card h3 { font-size:0.9rem; margin-bottom:10px; }
+.line-area { height:180px; position:relative; }
+.bar-row { display:flex; align-items:flex-end; gap:3px; height:120px; }
+.bar-row .b { flex:1; border-radius:3px 3px 0 0; min-width:4px; background:#7c3aed; }
+.bar-row .b.g { background:#22c55e; }
+.bar-row .b.p { background:#ec4899; }
+.mini-bars { display:flex; flex-direction:column; gap:8px; }
+.mini-bars .mb { display:flex; align-items:center; gap:8px; font-size:0.8rem; }
+.mini-bars .track { flex:1; height:10px; background:#f3f4f6; border-radius:6px; overflow:hidden; }
+.mini-bars .fill { height:100%; background:#22c55e; border-radius:6px; }
+.bottom-grid { display:grid; grid-template-columns:1fr; gap:12px; margin-top:14px; }
+@media(min-width:900px){ .bottom-grid { grid-template-columns:1fr 1fr 1fr; } }
+.line-svg { width:100%; height:160px; }
 </style>
 {% endblock %}
 {% block content %}
-{% if expiring %}
-<div class="alert-banner">⏰ {{ expiring|length }} قرارداد فعال — نزدیک‌ترین‌ها را برای تمدید بررسی کنید.</div>
-{% endif %}
-{% if insurance_alert %}
-<div class="alert-banner">🛡️ {{ insurance_alert|length }} قرارداد دارای تاریخ بیمه ثبت‌شده — سررسید بیمه را چک کنید.</div>
-{% endif %}
 {% if overdue_visits %}
-<div class="alert-banner" style="background:linear-gradient(90deg,#fee2e2,#fff1f2);border-color:#ef4444;color:#991b1b;">
+<div class="alert-banner" style="border-color:#fca5a5;background:linear-gradient(90deg,#fef2f2,#fff1f2);color:#991b1b;">
   🚫 {{ overdue_visits|length }} سرویس عقب‌افتاده
 </div>
 {% endif %}
 
-<div class="stats">
-  <div class="stat-box"><div class="num">{{ stats.contracts }}</div><div class="label">قرارداد فعال</div></div>
-  <div class="stat-box"><div class="num">{{ stats.elevators }}</div><div class="label">آسانسور</div></div>
-  <div class="stat-box"><div class="num">{{ stats.open_faults }}</div><div class="label">خرابی باز</div></div>
-  <div class="stat-box"><div class="num">{{ stats.overdue }}</div><div class="label">عقب‌افتاده</div></div>
-  <div class="stat-box"><div class="num">{{ stats.done_month }}</div><div class="label">سرویس این ماه</div></div>
-  <div class="stat-box"><div class="num">{{ stats.faults_month }}</div><div class="label">خرابی این ماه</div></div>
+<div class="dash-top">
+  <div>
+    <div class="kpi-grid" style="grid-template-columns:1fr 1fr;">
+      <div class="kpi">
+        <div class="kpi-ico">📋</div>
+        <div class="kpi-num">{{ stats.contracts }}</div>
+        <div class="kpi-label">قراردادهای منقضی شده</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-ico">🛡️</div>
+        <div class="kpi-num">{{ insurance_alert|length if insurance_alert else 0 }}</div>
+        <div class="kpi-label">بیمه منقضی شده</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-ico">🔄</div>
+        <div class="kpi-num">{{ expiring|length if expiring else 0 }}</div>
+        <div class="kpi-label">درخواست ارسال شده برای تمدید</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-ico">✅</div>
+        <div class="kpi-num">{{ stats.done_month }}</div>
+        <div class="kpi-label">خدمات انجام شده در این ماه</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <h3>کل بدهی / روند سرویس و خرابی</h3>
+    {% set mx = (chart_services + chart_faults)|max if (chart_services or chart_faults) else 1 %}
+    <svg class="line-svg" viewBox="0 0 400 160" preserveAspectRatio="none">
+      {% if chart_services and chart_services|length > 1 %}
+      {% set n = chart_services|length %}
+      <polyline fill="none" stroke="#22c55e" stroke-width="2.5"
+        points="{% for v in chart_services %}{{ loop.index0 * (400 / (n-1)) }},{{ 150 - (v / (mx if mx>0 else 1) * 130) }}{% if not loop.last %} {% endif %}{% endfor %}"/>
+      <polyline fill="none" stroke="#ec4899" stroke-width="2.5"
+        points="{% for v in chart_faults %}{{ loop.index0 * (400 / (n-1)) }},{{ 150 - (v / (mx if mx>0 else 1) * 130) }}{% if not loop.last %} {% endif %}{% endfor %}"/>
+      {% endif %}
+    </svg>
+    <div style="display:flex;gap:16px;font-size:0.75rem;color:var(--muted);">
+      <span style="color:#16a34a;">● سرویس</span>
+      <span style="color:#db2777;">● خرابی</span>
+    </div>
+  </div>
 </div>
 
-<div class="chart-wrap">
-  <div class="card">
-    <h3>📈 سرویس‌های انجام‌شده (۱۲ ماه)</h3>
-    {% set mx = chart_services|max if chart_services else 1 %}
-    <div class="bar-chart">
-      {% for n in chart_services %}
-      <div class="bar" style="height:{{ (n / (mx if mx>0 else 1) * 100)|int }}%;" title="{{ n }}"></div>
+<div class="bottom-grid">
+  <div class="chart-card">
+    <h3>شغل برای انجام</h3>
+    {% set mxb = chart_services|max if chart_services else 1 %}
+    <div class="bar-row">
+      {% for n in chart_services[-6:] %}
+      <div class="b p" style="height:{{ (n / (mxb if mxb>0 else 1) * 100)|int }}%;" title="{{ n }}"></div>
+      {% else %}
+      <div class="b p" style="height:20%;"></div>
+      <div class="b p" style="height:40%;"></div>
       {% endfor %}
     </div>
-    <div class="chart-labels">{% for l in chart_labels %}<span>{{ l[5:] }}</span>{% endfor %}</div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-top:8px;">عقب‌افتاده: <b>{{ stats.overdue }}</b></p>
   </div>
-  <div class="card">
-    <h3>📉 خرابی‌های اعلام‌شده (۱۲ ماه)</h3>
+  <div class="chart-card">
+    <h3>تیم فنی</h3>
+    <div class="mini-bars">
+      <div class="mb"><span>سرویس‌کار</span><div class="track"><div class="fill" style="width:70%;"></div></div></div>
+      <div class="mb"><span>فعال</span><div class="track"><div class="fill" style="width:55%;background:#7c3aed;"></div></div></div>
+      <div class="mb"><span>آماده</span><div class="track"><div class="fill" style="width:40%;background:#a855f7;"></div></div></div>
+    </div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-top:10px;">آسانسورها: <b>{{ stats.elevators }}</b></p>
+  </div>
+  <div class="chart-card">
+    <h3>خدمات و خرابی</h3>
     {% set mx2 = chart_faults|max if chart_faults else 1 %}
-    <div class="bar-chart">
-      {% for n in chart_faults %}
-      <div class="bar fault" style="height:{{ (n / (mx2 if mx2>0 else 1) * 100)|int }}%;" title="{{ n }}"></div>
+    <div class="bar-row">
+      {% for n in chart_faults[-6:] %}
+      <div class="b g" style="height:{{ (n / (mx2 if mx2>0 else 1) * 100)|int }}%;background:{% if loop.index is odd %}#7c3aed{% else %}#22c55e{% endif %};" title="{{ n }}"></div>
+      {% else %}
+      <div class="b" style="height:30%;"></div>
+      <div class="b g" style="height:50%;"></div>
       {% endfor %}
     </div>
-    <div class="chart-labels">{% for l in chart_labels %}<span>{{ l[5:] }}</span>{% endfor %}</div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-top:8px;">خرابی باز: <b>{{ stats.open_faults }}</b> · این ماه: <b>{{ stats.faults_month }}</b></p>
   </div>
 </div>
 
-<div class="card">
-  <h3>⚠️ سرویس‌های عقب‌افتاده</h3>
-  <div class="table-wrap"><table>
-    <thead><tr><th>تاریخ برنامه</th><th>آسانسور</th><th>سرویس‌کار</th><th>وضعیت</th></tr></thead>
-    <tbody>
-    {% for v in overdue_visits %}
-    <tr><td>{{ v.planned_date }}</td><td>{{ v.elev_code }} — {{ v.elev_name or '' }}</td><td>{{ v.tech_name or '—' }}</td>
-    <td><span class="badge" style="background:#fadbd8;color:#922b21;">عقب‌افتاده</span></td></tr>
-    {% else %}<tr><td colspan="4" style="text-align:center;">موردی نیست</td></tr>{% endfor %}
-    </tbody>
-  </table></div>
-</div>
-
-<div class="card">
-  <h3>📄 قراردادها (برای تمدید)</h3>
+<div class="card" style="margin-top:14px;">
+  <h3>📄 قراردادها — تمدید و پورتال</h3>
   <div class="table-wrap"><table>
     <thead><tr><th>شماره</th><th>مشتری</th><th>ساختمان</th><th>پایان</th><th>مبلغ</th><th></th></tr></thead>
     <tbody>
     {% for c in expiring %}
     <tr>
-      <td>{{ c.contract_no }}</td><td>{{ c.customer_name or '—' }}</td><td>{{ c.building_name or '—' }}</td>
-      <td>{{ c.end_date }}</td><td class="text-left">{{ "{:,.0f}".format(c.amount or 0) }}</td>
-      <td><a class="btn btn-sm btn-primary" href="{{ url_for('elev_contract_renew', cid=c.id) }}">تمدید</a>
-      {% if c.public_token %}<a class="btn btn-sm btn-secondary" target="_blank" href="{{ url_for('customer_portal', token=c.public_token) }}">پورتال</a>{% endif %}
+      <td>{{ c.contract_no }}</td>
+      <td>{{ c.customer_name or '—' }}</td>
+      <td>{{ c.building_name or '—' }}</td>
+      <td>{{ c.end_date }}</td>
+      <td class="text-left">{{ "{:,.0f}".format(c.amount or 0) }}</td>
+      <td>
+        <a class="btn btn-sm btn-primary" href="{{ url_for('elev_contract_renew', cid=c.id) }}">تمدید</a>
+        {% if c.public_token %}<a class="btn btn-sm btn-secondary" target="_blank" href="{{ url_for('customer_portal', token=c.public_token) }}">پورتال</a>{% endif %}
       </td>
     </tr>
-    {% else %}<tr><td colspan="6" style="text-align:center;">موردی نیست</td></tr>{% endfor %}
+    {% else %}<tr><td colspan="6" style="text-align:center;color:var(--muted);">موردی نیست</td></tr>{% endfor %}
     </tbody>
   </table></div>
 </div>
 
-{% if insurance_alert %}
 <div class="card">
-  <h3>🛡️ بیمه قراردادها</h3>
+  <h3>⚠️ سرویس‌های عقب‌افتاده</h3>
   <div class="table-wrap"><table>
-    <thead><tr><th>قرارداد</th><th>مشتری</th><th>ساختمان</th><th>پایان بیمه</th></tr></thead>
+    <thead><tr><th>تاریخ</th><th>آسانسور</th><th>سرویس‌کار</th><th></th></tr></thead>
     <tbody>
-    {% for c in insurance_alert %}
-    <tr><td>{{ c.contract_no }}</td><td>{{ c.customer_name or '—' }}</td><td>{{ c.building_name or '—' }}</td><td>{{ c.insurance_end }}</td></tr>
-    {% endfor %}
-    </tbody>
-  </table></div>
-</div>
-{% endif %}
-
-<div class="card">
-  <h3>🔧 خرابی‌های باز</h3>
-  <div class="table-wrap"><table>
-    <thead><tr><th>تاریخ</th><th>آسانسور</th><th>شرح</th><th>اولویت</th><th>وضعیت</th></tr></thead>
-    <tbody>
-    {% for f in open_faults %}
-    <tr><td>{{ f.report_date }}</td><td>{{ f.elev_code }}</td><td>{{ f.description }}</td><td>{{ f.priority }}</td><td>{{ f.status }}</td></tr>
-    {% else %}<tr><td colspan="5" style="text-align:center;">خرابی بازی نیست</td></tr>{% endfor %}
+    {% for v in overdue_visits %}
+    <tr>
+      <td>{{ v.planned_date }}</td>
+      <td>{{ v.elev_code }} — {{ v.elev_name or '' }}</td>
+      <td>{{ v.tech_name or '—' }}</td>
+      <td><span class="badge" style="background:#fee2e2;color:#991b1b;">عقب‌افتاده</span></td>
+    </tr>
+    {% else %}<tr><td colspan="4" style="text-align:center;color:var(--muted);">موردی نیست</td></tr>{% endfor %}
     </tbody>
   </table></div>
 </div>

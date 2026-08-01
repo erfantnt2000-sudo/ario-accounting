@@ -107,7 +107,7 @@ def login():
                 flash("ورود سرویس‌کار موفقیت‌آمیز بود.", "success")
                 return redirect(url_for("tech_home"))
             flash("ورود موفقیت‌آمیز بود.", "success")
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("elev_dashboard"))
         flash("نام کاربری یا رمز عبور اشتباه است.", "danger")
     return render_template("login.html")
 
@@ -1081,19 +1081,115 @@ def elev_contract_add():
 @app.route("/elevators/visits")
 @login_required
 def elev_visits():
+    """جستجوی سرویس انجام‌شده/نشده با فیلتر سرویس‌کار، منطقه، تاریخ"""
     conn = get_connection()
-    rows = conn.execute("""
-        SELECT v.*, e.code as elev_code, e.name as elev_name, t.name as tech_name
+    status = (request.args.get("status") or "").strip()
+    tech_id = (request.args.get("technician_id") or "").strip()
+    region = (request.args.get("region") or "").strip()
+    date_from = (request.args.get("date_from") or "").strip()
+    date_to = (request.args.get("date_to") or "").strip()
+    q = (request.args.get("q") or "").strip()
+    sql = """
+        SELECT v.*, e.code as elev_code, e.name as elev_name, t.name as tech_name,
+               b.name as building_name, b.region as region
         FROM service_visits v
         LEFT JOIN elevators e ON e.id=v.elevator_id
+        LEFT JOIN buildings b ON b.id=e.building_id
         LEFT JOIN technicians t ON t.id=v.technician_id
-        ORDER BY v.planned_date DESC LIMIT 100
-    """).fetchall()
+        WHERE 1=1
+    """
+    params = []
+    if status:
+        sql += " AND v.status=?"; params.append(status)
+    if tech_id:
+        sql += " AND v.technician_id=?"; params.append(tech_id)
+    if region:
+        sql += " AND b.region LIKE ?"; params.append(f"%{region}%")
+    if date_from:
+        sql += " AND v.planned_date >= ?"; params.append(date_from)
+    if date_to:
+        sql += " AND v.planned_date <= ?"; params.append(date_to)
+    if q:
+        sql += " AND (e.code LIKE ? OR e.name LIKE ? OR b.name LIKE ? OR t.name LIKE ?)"
+        params.extend([f"%{q}%"]*4)
+    sql += " ORDER BY v.planned_date DESC LIMIT 200"
+    rows = conn.execute(sql, params).fetchall()
     techs = conn.execute("SELECT id,name FROM technicians WHERE is_active=1").fetchall()
     elevators = conn.execute("SELECT id,code,name FROM elevators").fetchall()
     contracts = conn.execute("SELECT id,contract_no FROM contracts WHERE status='active'").fetchall()
+    regions = conn.execute(
+        "SELECT DISTINCT region FROM buildings WHERE region IS NOT NULL AND region!='' ORDER BY region"
+    ).fetchall()
     conn.close()
-    return render_template("elev_visits.html", rows=rows, techs=techs, elevators=elevators, contracts=contracts, today=today_jalali())
+    filters = {"status": status, "technician_id": tech_id, "region": region,
+               "date_from": date_from, "date_to": date_to, "q": q}
+    return render_template("elev_visits.html", rows=rows, techs=techs, elevators=elevators,
+                           contracts=contracts, regions=regions, filters=filters, today=today_jalali())
+
+
+@app.route("/elevators/visits/<int:vid>/edit", methods=["POST"])
+@login_required
+def elev_visit_edit(vid):
+    """تغییر سرویس‌کار یا تاریخ سرویس"""
+    conn = get_connection()
+    tech = request.form.get("technician_id") or None
+    planned = (request.form.get("planned_date") or "").strip()
+    if planned:
+        conn.execute("UPDATE service_visits SET planned_date=? WHERE id=?", (planned, vid))
+    if "technician_id" in request.form:
+        conn.execute("UPDATE service_visits SET technician_id=? WHERE id=?", (tech, vid))
+    conn.commit()
+    conn.close()
+    flash("سرویس به‌روز شد (سرویس‌کار / تاریخ).", "success")
+    return redirect(request.referrer or url_for("elev_visits"))
+
+@app.route("/elevators/visits/<int:vid>/checklist")
+@login_required
+def elev_visit_checklist_print(vid):
+    """چاپ چک‌لیست سرویس"""
+    conn = get_connection()
+    visit = conn.execute("""
+        SELECT v.*, e.code as elev_code, e.name as elev_name, e.brand,
+               b.name as building_name, b.address as building_address, t.name as tech_name
+        FROM service_visits v
+        LEFT JOIN elevators e ON e.id=v.elevator_id
+        LEFT JOIN buildings b ON b.id=e.building_id
+        LEFT JOIN technicians t ON t.id=v.technician_id
+        WHERE v.id=?
+    """, (vid,)).fetchone()
+    items = conn.execute(
+        "SELECT * FROM visit_checklist WHERE visit_id=? ORDER BY id", (vid,)
+    ).fetchall()
+    conn.close()
+    if not visit:
+        flash("بازدید یافت نشد", "danger")
+        return redirect(url_for("elev_visits"))
+    # اگر چک‌لیست خالی است، قالب استاندارد نشان بده
+    checklist = items if items else [{"item_label": lab, "is_ok": None, "item_key": k} for k, lab in SERVICE_CHECKLIST]
+    return render_template("elev_checklist_print.html", visit=visit, checklist=checklist, today=today_jalali())
+
+@app.route("/notifications", methods=["GET", "POST"])
+@login_required
+def notifications():
+    """ارسال و مشاهده اعلان‌ها"""
+    conn = get_connection()
+    if request.method == "POST":
+        title = (request.form.get("title") or "").strip()
+        body = (request.form.get("body") or "").strip()
+        tech_id = request.form.get("technician_id") or None
+        if title:
+            conn.execute(
+                "INSERT INTO notifications (title, body, target_role, technician_id, created_at) VALUES (?,?,?,?,?)",
+                (title, body, "technician" if tech_id else "all", tech_id, datetime.now().isoformat())
+            )
+            conn.commit()
+            flash("اعلان ثبت شد.", "success")
+        return redirect(url_for("notifications"))
+    rows = conn.execute("SELECT n.*, t.name as tech_name FROM notifications n LEFT JOIN technicians t ON t.id=n.technician_id ORDER BY n.id DESC LIMIT 50").fetchall()
+    techs = conn.execute("SELECT id,name FROM technicians WHERE is_active=1").fetchall()
+    conn.close()
+    return render_template("notifications.html", rows=rows, techs=techs, today=today_jalali())
+
 
 @app.route("/elevators/visits/add", methods=["POST"])
 @login_required
@@ -1498,8 +1594,8 @@ def pwa_manifest():
         "short_name": "آریو",
         "start_url": "/",
         "display": "standalone",
-        "background_color": "#f0fdfa",
-        "theme_color": "#0f766e",
+        "background_color": "#f4f5f7",
+        "theme_color": "#7c3aed",
         "lang": "fa",
         "dir": "rtl",
         "icons": [{"src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml"}]
