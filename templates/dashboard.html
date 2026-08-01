@@ -1,53 +1,31 @@
 {% extends "base.html" %}
-{% block title %}داشبورد | حسابداری آریو{% endblock %}
-{% block page_title %}<strong>داشبورد مدیریتی</strong>{% endblock %}
+{% block title %}داشبورد{% endblock %}
+{% block page_title %}<strong>داشبورد</strong>{% endblock %}
 {% block content %}
 <div class="stats">
-    <div class="stat-box">
-        <div class="num">{{ stats.accounts }}</div>
-        <div class="label">حساب‌های تعریف‌شده</div>
-    </div>
-    <div class="stat-box">
-        <div class="num">{{ stats.parties }}</div>
-        <div class="label">اشخاص</div>
-    </div>
-    <div class="stat-box">
-        <div class="num">{{ stats.products }}</div>
-        <div class="label">کالاها</div>
-    </div>
-    <div class="stat-box">
-        <div class="num">{{ stats.vouchers }}</div>
-        <div class="label">اسناد حسابداری</div>
-    </div>
-    <div class="stat-box">
-        <div class="num">{{ stats.invoices }}</div>
-        <div class="label">فاکتورها</div>
-    </div>
+  <div class="stat-box"><div class="num">{{ stats.accounts }}</div><div class="label">حساب‌ها</div></div>
+  <div class="stat-box"><div class="num">{{ stats.parties }}</div><div class="label">کارفرماها</div></div>
+  <div class="stat-box"><div class="num">{{ stats.products }}</div><div class="label">قطعات/کالا</div></div>
+  <div class="stat-box"><div class="num">{{ stats.vouchers }}</div><div class="label">اسناد</div></div>
+  <div class="stat-box"><div class="num">{{ stats.invoices }}</div><div class="label">فاکتورها</div></div>
 </div>
-
 <div class="form-row">
-    <div class="card">
-        <h3>موجودی نقدی (تقریبی)</h3>
-        <p style="font-size:1.4rem;color:#27ae60;font-weight:bold;">{{ "{:,.0f}".format(cash) }} ریال</p>
-        <small>حساب صندوق (۱۱۱۰۱)</small>
-    </div>
-    <div class="card">
-        <h3>موجودی بانک (تقریبی)</h3>
-        <p style="font-size:1.4rem;color:#2980b9;font-weight:bold;">{{ "{:,.0f}".format(bank) }} ریال</p>
-        <small>حساب بانک‌ها (۱۱۱۰۲)</small>
-    </div>
+  <div class="card">
+    <h3>موجودی صندوق (تقریبی)</h3>
+    <p style="font-size:1.3rem;color:#27ae60;font-weight:bold;">{{ "{:,.0f}".format(cash) }} ریال</p>
+  </div>
+  <div class="card">
+    <h3>موجودی بانک (تقریبی)</h3>
+    <p style="font-size:1.3rem;color:#2980b9;font-weight:bold;">{{ "{:,.0f}".format(bank) }} ریال</p>
+  </div>
 </div>
-
 <div class="card">
-    <h3>دسترسی سریع</h3>
-    <p class="quick-actions" style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;">
-        <a href="{{ url_for('voucher_add') }}" class="btn btn-primary">ثبت سند جدید</a>
-        <a href="{{ url_for('invoice_sale') }}" class="btn btn-success">فاکتور فروش</a>
-        <a href="{{ url_for('party_add') }}" class="btn btn-secondary">ثبت شخص</a>
-    </p>
-    <p style="color:#7f8c8d;font-size:0.9rem;">
-        این نسخه شامل ماژول‌های اصلی حسابداری مالی، کدینگ، اسناد، اشخاص، کالا، فاکتور فروش و گزارش‌های پایه است.
-        برای توسعه بیشتر (حقوق، تولید، چک، چندانباره و ...) می‌توانید درخواست دهید.
-    </p>
+  <h3>دسترسی سریع</h3>
+  <p class="quick-actions" style="display:flex;flex-wrap:wrap;gap:8px;">
+    <a href="{{ url_for('customer_register') }}" class="btn btn-primary">ثبت قرارداد جدید</a>
+    <a href="{{ url_for('elev_today') }}" class="btn btn-success">سرویس امروز</a>
+    <a href="{{ url_for('elev_faults') }}" class="btn btn-danger">ثبت خرابی</a>
+    <a href="{{ url_for('invoice_sale') }}" class="btn btn-secondary">صدور فاکتور</a>
+  </p>
 </div>
 {% endblock %}

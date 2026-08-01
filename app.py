@@ -545,13 +545,19 @@ def profit_loss():
 @app.route("/customers")
 @login_required
 def customers():
-    """لیست کامل مشتریان"""
+    """لیست کارفرماها با قرارداد و ساختمان (ویژه شرکت آسانسور)"""
     conn = get_connection()
     rows = conn.execute("""
-        SELECT p.*,
-               (SELECT COUNT(*) FROM appointments a WHERE a.party_id=p.id) as appt_count,
-               (SELECT COALESCE(SUM(amount),0) FROM payments pay WHERE pay.party_id=p.id) as total_paid,
-               (SELECT COALESCE(SUM(amount),0) FROM appointments a WHERE a.party_id=p.id AND a.is_done=1) as total_service
+        SELECT p.id, p.code, p.name, p.phone, p.address,
+               (SELECT COUNT(*) FROM contracts c WHERE c.party_id=p.id AND c.status='active') as active_contracts,
+               (SELECT COALESCE(SUM(c.amount),0) FROM contracts c WHERE c.party_id=p.id) as total_contract,
+               (SELECT COALESCE(SUM(pay.amount),0) FROM payments pay WHERE pay.party_id=p.id) as total_paid,
+               (SELECT b.name FROM buildings b WHERE b.party_id=p.id ORDER BY b.id DESC LIMIT 1) as building_name,
+               (SELECT c.start_date FROM contracts c WHERE c.party_id=p.id ORDER BY c.id DESC LIMIT 1) as last_start,
+               (SELECT c.end_date FROM contracts c WHERE c.party_id=p.id ORDER BY c.id DESC LIMIT 1) as last_end,
+               (SELECT v.planned_date FROM service_visits v
+                    JOIN contracts c2 ON c2.id=v.contract_id
+                    WHERE c2.party_id=p.id ORDER BY v.planned_date DESC LIMIT 1) as last_service
         FROM parties p
         WHERE p.party_type IN ('customer', 'both') AND p.is_active=1
         ORDER BY p.name
@@ -605,6 +611,84 @@ def customer_edit(cid):
         return redirect(url_for("customers"))
     conn.close()
     return render_template("customer_form.html", customer=customer, today=today_jalali())
+
+
+@app.route("/customers/register", methods=["GET", "POST"])
+@login_required
+def customer_register():
+    """ثبت یکجای کارفرما + ساختمان + آسانسور + قرارداد + نوبت سرویس"""
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        phone = (request.form.get("phone") or "").strip()
+        address = (request.form.get("address") or "").strip()
+        building_name = (request.form.get("building_name") or "").strip()
+        elev_code = (request.form.get("elev_code") or "").strip()
+        elev_brand = (request.form.get("elev_brand") or "").strip()
+        elev_stops = int(request.form.get("elev_stops") or 0)
+        contract_no = (request.form.get("contract_no") or "").strip()
+        start_date = (request.form.get("start_date") or today_jalali()).strip()
+        end_date = (request.form.get("end_date") or "").strip()
+        amount = float(request.form.get("amount") or 0)
+        visit_per_month = int(request.form.get("visit_per_month") or 1)
+        first_service = (request.form.get("first_service") or start_date).strip()
+        tech_id = request.form.get("technician_id") or None
+        notes = (request.form.get("notes") or "").strip()
+
+        if not name or not building_name or not end_date:
+            flash("نام کارفرما، نام ساختمان و تاریخ پایان قرارداد الزامی است.", "danger")
+            return redirect(url_for("customer_register"))
+
+        conn = get_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "INSERT INTO parties (name, party_type, phone, address, notes, created_at) VALUES (?,?,?,?,?,?)",
+                (name, "customer", phone, address, notes, datetime.now().isoformat())
+            )
+            party_id = cur.lastrowid
+            cur.execute(
+                "INSERT INTO buildings (code, name, address, party_id, created_at) VALUES (?,?,?,?,?)",
+                (None, building_name, address, party_id, datetime.now().isoformat())
+            )
+            building_id = cur.lastrowid
+            if not elev_code:
+                elev_code = f"EL-{party_id:04d}"
+            cur.execute(
+                """INSERT INTO elevators (building_id, code, name, brand, stops, status, notes, created_at)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                (building_id, elev_code, f"آسانسور {building_name}", elev_brand, elev_stops, "active", notes, datetime.now().isoformat())
+            )
+            elev_id = cur.lastrowid
+            if not contract_no:
+                contract_no = f"CT-{datetime.now().strftime('%Y%m%d')}-{party_id}"
+            cur.execute(
+                """INSERT INTO contracts (contract_no, party_id, building_id, elevator_id, start_date, end_date,
+                   amount, visit_per_month, payment_type, status, description, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (contract_no, party_id, building_id, elev_id, start_date, end_date, amount,
+                 visit_per_month, "monthly", "active", notes, datetime.now().isoformat())
+            )
+            contract_id = cur.lastrowid
+            cur.execute(
+                """INSERT INTO service_visits (contract_id, elevator_id, technician_id, planned_date, visit_type, status, amount, created_at)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                (contract_id, elev_id, tech_id, first_service, "periodic", "planned", amount / max(visit_per_month * 12, 1), datetime.now().isoformat())
+            )
+            conn.commit()
+            flash(f"ثبت شد: {name} — {building_name} — قرارداد {contract_no}", "success")
+            return redirect(url_for("customers"))
+        except Exception as e:
+            conn.rollback()
+            flash(f"خطا در ثبت: {e}", "danger")
+            return redirect(url_for("customer_register"))
+        finally:
+            conn.close()
+
+    conn = get_connection()
+    techs = conn.execute("SELECT id, name FROM technicians WHERE is_active=1 ORDER BY name").fetchall()
+    conn.close()
+    return render_template("customer_register.html", techs=techs, today=today_jalali())
+
 
 @app.route("/appointments/today")
 @login_required

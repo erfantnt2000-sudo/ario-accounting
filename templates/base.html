@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title>{% block title %}حسابداری آریو{% endblock %}</title>
+    <title>{% block title %}آریو — سرویس آسانسور{% endblock %}</title>
     <style>
         :root {
             --primary: #0f4c75;
@@ -384,34 +384,36 @@
         <aside class="sidebar">
             <div class="brand">
                 حسابداری آریو
-                <small>Ario Accounting</small>
+                <small>Elevator Service CRM</small>
             </div>
             <nav>
                 <div class="nav-group">
-                    <div class="nav-group-title">اصلی</div>
+                    <div class="nav-group-title">عملیات روزانه</div>
                     <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">📊 <span>داشبورد</span></a>
-                    <a href="{{ url_for('customers') }}" class="{% if request.endpoint and 'customer' in request.endpoint %}active{% endif %}">👥 <span>مشتریان</span></a>
-                    <a href="{{ url_for('appointments_today') }}" class="{% if request.endpoint == 'appointments_today' %}active{% endif %}">📅 <span>نوبت امروز</span></a>
-                    <a href="{{ url_for('payments_list') }}" class="{% if request.endpoint and 'payment' in request.endpoint %}active{% endif %}">💰 <span>پرداخت و بدهی</span></a>
+                    <a href="{{ url_for('elev_today') }}" class="{% if request.endpoint == 'elev_today' %}active{% endif %}">📅 <span>سرویس امروز</span></a>
+                    <a href="{{ url_for('elev_missed') }}" class="{% if request.endpoint == 'elev_missed' %}active{% endif %}">🚫 <span>عقب‌افتاده‌ها</span></a>
+                    <a href="{{ url_for('elev_faults') }}" class="{% if request.endpoint and 'fault' in request.endpoint %}active{% endif %}">⚠️ <span>خرابی و اعزام</span></a>
                 </div>
                 <div class="nav-group">
-                    <div class="nav-group-title">آسانسور</div>
+                    <div class="nav-group-title">قرارداد و مشتری</div>
+                    <a href="{{ url_for('customers') }}" class="{% if request.endpoint and 'customer' in request.endpoint %}active{% endif %}">👥 <span>کارفرماها</span></a>
+                    <a href="{{ url_for('customer_register') }}" class="{% if request.endpoint == 'customer_register' %}active{% endif %}">➕ <span>ثبت قرارداد جدید</span></a>
+                    <a href="{{ url_for('payments_list') }}" class="{% if request.endpoint and 'payment' in request.endpoint %}active{% endif %}">💰 <span>پرداخت و بدهی</span></a>
+                    <a href="{{ url_for('elev_contracts') }}" class="{% if request.endpoint and 'contract' in request.endpoint %}active{% endif %}">📄 <span>لیست قراردادها</span></a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-title">فنی</div>
                     <a href="{{ url_for('elev_dashboard') }}" class="{% if request.endpoint == 'elev_dashboard' %}active{% endif %}">🛗 <span>داشبورد آسانسور</span></a>
                     <a href="{{ url_for('elev_list') }}" class="{% if request.endpoint in ['elev_list','elev_add'] %}active{% endif %}">📁 <span>پرونده آسانسور</span></a>
                     <a href="{{ url_for('elev_buildings') }}" class="{% if request.endpoint and 'building' in request.endpoint %}active{% endif %}">🏢 <span>ساختمان‌ها</span></a>
-                    <a href="{{ url_for('elev_contracts') }}" class="{% if request.endpoint and 'contract' in request.endpoint %}active{% endif %}">📄 <span>قراردادها</span></a>
-                    <a href="{{ url_for('elev_visits') }}" class="{% if request.endpoint == 'elev_visits' %}active{% endif %}">🛠️ <span>برنامه سرویس</span></a>
-                    <a href="{{ url_for('elev_today') }}" class="{% if request.endpoint == 'elev_today' %}active{% endif %}">📅 <span>نوبت امروز آسانسور</span></a>
-                    <a href="{{ url_for('elev_missed') }}" class="{% if request.endpoint == 'elev_missed' %}active{% endif %}">🚫 <span>انجام‌نشده‌ها</span></a>
-                    <a href="{{ url_for('elev_faults') }}" class="{% if request.endpoint and 'fault' in request.endpoint %}active{% endif %}">⚠️ <span>خرابی و اعزام</span></a>
                     <a href="{{ url_for('elev_technicians') }}" class="{% if request.endpoint and 'tech' in request.endpoint %}active{% endif %}">👷 <span>سرویس‌کاران</span></a>
                 </div>
                 <div class="nav-group">
-                    <div class="nav-group-title">حسابداری</div>
-                    <a href="{{ url_for('accounts') }}" class="{% if request.endpoint and 'account' in request.endpoint %}active{% endif %}">📒 <span>حساب‌ها</span></a>
+                    <div class="nav-group-title">مالی</div>
+                    <a href="{{ url_for('invoice_sale') }}" class="{% if request.endpoint == 'invoice_sale' %}active{% endif %}">🧾 <span>صدور فاکتور</span></a>
+                    <a href="{{ url_for('invoices') }}" class="{% if request.endpoint in ['invoices','invoice_view'] %}active{% endif %}">📋 <span>لیست فاکتورها</span></a>
                     <a href="{{ url_for('vouchers') }}" class="{% if request.endpoint and 'voucher' in request.endpoint %}active{% endif %}">📝 <span>اسناد</span></a>
-                    <a href="{{ url_for('products') }}" class="{% if request.endpoint and 'product' in request.endpoint %}active{% endif %}">📦 <span>کالا و انبار</span></a>
-                    <a href="{{ url_for('invoices') }}" class="{% if request.endpoint and 'invoice' in request.endpoint %}active{% endif %}">🧾 <span>فاکتورها</span></a>
+                    <a href="{{ url_for('products') }}" class="{% if request.endpoint and 'product' in request.endpoint %}active{% endif %}">📦 <span>قطعات و کالا</span></a>
                 </div>
                 <div class="nav-group">
                     <a href="{{ url_for('logout') }}">🚪 <span>خروج</span></a>
