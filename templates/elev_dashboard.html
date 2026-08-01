@@ -2,6 +2,17 @@
 {% block title %}داشبورد آسانسور{% endblock %}
 {% block page_title %}<strong>داشبورد مدیریت سرویس آسانسور</strong>{% endblock %}
 {% block content %}
+{% if expiring %}
+<div class="alert-banner">
+  ⏰ <strong>{{ expiring|length }}</strong> قرارداد فعال در فهرست زیر است — قراردادهای نزدیک به پایان را بررسی و تمدید کنید.
+</div>
+{% endif %}
+{% if overdue_visits %}
+<div class="alert-banner" style="background:linear-gradient(90deg,#fee2e2,#fff1f2);border-color:#ef4444;color:#991b1b;">
+  🚫 <strong>{{ overdue_visits|length }}</strong> سرویس عقب‌افتاده دارید.
+</div>
+{% endif %}
+
 <div class="stats">
     <div class="stat-box"><div class="num">{{ stats.complexes }}</div><div class="label">مجتمع</div></div>
     <div class="stat-box"><div class="num">{{ stats.buildings }}</div><div class="label">ساختمان</div></div>

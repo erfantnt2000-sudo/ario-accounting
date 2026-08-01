@@ -257,6 +257,36 @@
         .alert-danger { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
         .alert-info { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
 
+        
+        .tech-job {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+            border: 1px solid var(--border);
+        }
+        .tech-job-title { font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+        .tech-job-meta { font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+        .chk-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.92rem;
+            cursor: pointer;
+        }
+        .chk-row input { width: 20px; height: 20px; accent-color: var(--success); }
+        .alert-banner {
+            background: linear-gradient(90deg, #fef3c7, #fff7ed);
+            border: 1px solid #f59e0b;
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            color: #92400e;
+            font-size: 0.9rem;
+        }
+
         .badge {
             display: inline-block;
             padding: 3px 10px;
@@ -387,6 +417,14 @@
                 <small>Elevator Service CRM</small>
             </div>
             <nav>
+                {% if session.get('role') == 'technician' %}
+                <div class="nav-group">
+                    <div class="nav-group-title">سرویس‌کار</div>
+                    <a href="{{ url_for('tech_home') }}" class="{% if request.endpoint and request.endpoint.startswith('tech_') %}active{% endif %}">📱 <span>کارهای امروز</span></a>
+                    <a href="{{ url_for('elev_faults') }}">⚠️ <span>خرابی‌ها</span></a>
+                    <a href="{{ url_for('logout') }}">🚪 <span>خروج</span></a>
+                </div>
+                {% else %}
                 <div class="nav-group">
                     <div class="nav-group-title">عملیات روزانه</div>
                     <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">📊 <span>داشبورد</span></a>
@@ -404,22 +442,24 @@
                 <div class="nav-group">
                     <div class="nav-group-title">فنی</div>
                     <a href="{{ url_for('elev_dashboard') }}" class="{% if request.endpoint == 'elev_dashboard' %}active{% endif %}">🛗 <span>داشبورد آسانسور</span></a>
-                    <a href="{{ url_for('elev_list') }}" class="{% if request.endpoint in ['elev_list','elev_add'] %}active{% endif %}">📁 <span>پرونده آسانسور</span></a>
-                    <a href="{{ url_for('elev_buildings') }}" class="{% if request.endpoint and 'building' in request.endpoint %}active{% endif %}">🏢 <span>ساختمان‌ها</span></a>
-                    <a href="{{ url_for('elev_technicians') }}" class="{% if request.endpoint and 'tech' in request.endpoint %}active{% endif %}">👷 <span>سرویس‌کاران</span></a>
+                    <a href="{{ url_for('elev_list') }}">📁 <span>پرونده آسانسور</span></a>
+                    <a href="{{ url_for('elev_buildings') }}">🏢 <span>ساختمان‌ها</span></a>
+                    <a href="{{ url_for('elev_technicians') }}">👷 <span>سرویس‌کاران</span></a>
                 </div>
                 <div class="nav-group">
                     <div class="nav-group-title">مالی</div>
-                    <a href="{{ url_for('invoice_sale') }}" class="{% if request.endpoint == 'invoice_sale' %}active{% endif %}">🧾 <span>صدور فاکتور</span></a>
-                    <a href="{{ url_for('invoices') }}" class="{% if request.endpoint in ['invoices','invoice_view'] %}active{% endif %}">📋 <span>لیست فاکتورها</span></a>
-                    <a href="{{ url_for('vouchers') }}" class="{% if request.endpoint and 'voucher' in request.endpoint %}active{% endif %}">📝 <span>اسناد</span></a>
-                    <a href="{{ url_for('products') }}" class="{% if request.endpoint and 'product' in request.endpoint %}active{% endif %}">📦 <span>قطعات و کالا</span></a>
+                    <a href="{{ url_for('invoice_sale') }}">🧾 <span>صدور فاکتور</span></a>
+                    <a href="{{ url_for('invoices') }}">📋 <span>لیست فاکتورها</span></a>
+                    <a href="{{ url_for('vouchers') }}">📝 <span>اسناد</span></a>
+                    <a href="{{ url_for('products') }}">📦 <span>قطعات و کالا</span></a>
                 </div>
                 <div class="nav-group">
                     <a href="{{ url_for('logout') }}">🚪 <span>خروج</span></a>
                 </div>
+                {% endif %}
             </nav>
             <div class="user-info">
+                <div style="opacity:0.85;font-size:0.75rem;margin-bottom:4px;">{% if session.get("role")=="technician" %}سرویس‌کار{% else %}مدیر{% endif %}</div>
                 👤 {{ session.get('full_name', 'کاربر') }}
             </div>
         </aside>
