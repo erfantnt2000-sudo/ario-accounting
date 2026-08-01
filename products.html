@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>ورود | حسابداری آریو</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Tahoma, 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(145deg, #0f4c75 0%, #3282b8 45%, #1b6ca8 100%);
+            padding: 20px;
+        }
+        .login-box {
+            background: #fff;
+            padding: 36px 28px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            animation: fadeUp .4s ease;
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .logo {
+            width: 64px; height: 64px;
+            background: linear-gradient(135deg, #0f4c75, #3282b8);
+            border-radius: 16px;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: #fff;
+            box-shadow: 0 8px 24px rgba(15,76,117,0.35);
+        }
+        .login-box h1 { color: #0f4c75; margin-bottom: 4px; font-size: 1.4rem; }
+        .login-box p { color: #64748b; margin-bottom: 24px; font-size: 0.88rem; }
+        .form-group { margin-bottom: 14px; text-align: right; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.88rem; color: #334155; }
+        .form-control {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 1rem;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #3282b8;
+            box-shadow: 0 0 0 3px rgba(50,130,184,0.2);
+        }
+        .btn {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, #3282b8, #0f4c75);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            margin-top: 8px;
+            box-shadow: 0 4px 14px rgba(15,76,117,0.3);
+            transition: transform .12s, box-shadow .15s;
+        }
+        .btn:hover { box-shadow: 0 6px 20px rgba(15,76,117,0.4); }
+        .btn:active { transform: scale(0.98); }
+        .alert {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-bottom: 14px;
+            font-size: 0.88rem;
+            text-align: right;
+        }
+        .hint { margin-top: 18px; font-size: 0.78rem; color: #94a3b8; }
+        @media (max-width: 420px) {
+            .login-box { padding: 28px 18px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <div class="logo">🛗</div>
+        <h1>حسابداری آریو</h1>
+        <p>مدیریت سرویس آسانسور و حسابداری</p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for cat, msg in messages %}
+                    <div class="alert">{{ msg }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <form method="post">
+            <div class="form-group">
+                <label>نام کاربری</label>
+                <input type="text" name="username" class="form-control" required autofocus value="admin" autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label>رمز عبور</label>
+                <input type="password" name="password" class="form-control" required value="admin" autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn">ورود به سیستم</button>
+        </form>
+        <div class="hint">مدیر: admin / admin &nbsp;|&nbsp; سرویس‌کار: tech / tech</div>
+    </div>
+</body>
+</html>

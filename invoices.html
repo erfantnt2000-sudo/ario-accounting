@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}سرویس‌کاران{% endblock %}
+{% block page_title %}<strong>سرویس‌کاران</strong>{% endblock %}
+{% block content %}
+<div class="card">
+<h3>ثبت سرویس‌کار</h3>
+<form method="post" action="{{ url_for('elev_tech_add') }}" class="form-row" style="align-items:end;">
+<div class="form-group"><label>کد</label><input name="code" class="form-control"></div>
+<div class="form-group"><label>نام *</label><input name="name" class="form-control" required></div>
+<div class="form-group"><label>تلفن</label><input name="phone" class="form-control"></div>
+<div class="form-group"><label>تخصص</label><input name="skill" class="form-control"></div>
+<div class="form-group"><button class="btn btn-primary">ثبت</button></div>
+</form>
+</div>
+<div class="card">
+<table>
+<thead><tr><th>کد</th><th>نام</th><th>تلفن</th><th>تخصص</th></tr></thead>
+<tbody>
+{% for r in rows %}
+<tr><td>{{ r.code }}</td><td>{{ r.name }}</td><td class="text-left">{{ r.phone or '—' }}</td><td>{{ r.skill or '—' }}</td></tr>
+{% else %}<tr><td colspan="4" style="text-align:center;">خالی</td></tr>{% endfor %}
+</tbody></table>
+</div>
+{% endblock %}

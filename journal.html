@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}نوبت امروز آسانسور | حسابداری آریو{% endblock %}
+{% block page_title %}<strong>نوبت امروز آسانسور — {{ date_q }}</strong>{% endblock %}
+{% block content %}
+
+<div class="stats">
+    <div class="stat-box"><div class="num">{{ stats.total }}</div><div class="label">کل نوبت‌های این تاریخ</div></div>
+    <div class="stat-box" style="border-top-color:#2ecc71;"><div class="num">{{ stats.done }}</div><div class="label">انجام‌شده</div></div>
+    <div class="stat-box" style="border-top-color:#f39c12;"><div class="num">{{ stats.pending }}</div><div class="label">در انتظار</div></div>
+</div>
+
+<div class="card">
+    <h3>جستجو / انتخاب تاریخ</h3>
+    <form method="get" action="{{ url_for('elev_today') }}" class="form-row mobile-stack-form" style="align-items:end;">
+        <div class="form-group">
+            <label>تاریخ</label>
+            <input type="text" name="date" class="form-control" value="{{ date_q }}" placeholder="1404/06/10">
+        </div>
+        <div class="form-group">
+            <label>جستجوی مشتری / ساختمان / کد آسانسور</label>
+            <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="نام مشتری، ساختمان یا کد آسانسور...">
+        </div>
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary">🔍 نمایش</button>
+        </div>
+        <div class="form-group">
+            <a href="{{ url_for('elev_today') }}" class="btn btn-secondary">امروز</a>
+        </div>
+        <div class="form-group">
+            <a href="{{ url_for('elev_missed') }}" class="btn btn-danger">📋 لیست انجام‌نشده‌ها</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h3>افزودن نوبت سرویس برای این تاریخ</h3>
+    <form method="post" action="{{ url_for('elev_visit_add') }}" class="form-row mobile-stack-form" style="align-items:end;">
+        <input type="hidden" name="next" value="{{ url_for('elev_today', date=date_q, q=q) }}">
+        <input type="hidden" name="planned_date" value="{{ date_q }}">
+        <div class="form-group">
+            <label>آسانسور *</label>
+            <select name="elevator_id" class="form-control" required>
+                <option value="">— انتخاب —</option>
+                {% for e in elevators %}
+                <option value="{{ e.id }}">{{ e.code }} — {{ e.building_name or '' }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>قرارداد</label>
+            <select name="contract_id" class="form-control">
+                <option value="">—</option>
+                {% for c in contracts %}<option value="{{ c.id }}">{{ c.contract_no }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>سرویس‌کار</label>
+            <select name="technician_id" class="form-control">
+                <option value="">—</option>
+                {% for t in techs %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>نوع</label>
+            <select name="visit_type" class="form-control">
+                <option value="periodic">دوره‌ای</option>
+                <option value="emergency">اضطراری</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary">+ افزودن به لیست {{ date_q }}</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h2>لیست سرویس‌های تاریخ {{ date_q }}</h2>
+    <p style="color:#7f8c8d;margin-bottom:12px;">تیک بزنید وقتی سرویس انجام شد. موارد انجام‌نشدهٔ تاریخ‌های قبل خودکار به «لیست انجام‌نشده‌ها» می‌روند.</p>
+    <table>
+        <thead>
+            <tr>
+                <th>مشتری / مجتمع</th>
+                <th>ساختمان</th>
+                <th>آسانسور</th>
+                <th>آدرس</th>
+                <th>تلفن</th>
+                <th>سرویس‌کار</th>
+                <th>وضعیت</th>
+                <th>عملیات</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in rows %}
+            <tr style="{% if v.status=='done' %}background:#e8f8f0;{% endif %}">
+                <td><strong>{{ v.customer_name or v.complex_name or '—' }}</strong></td>
+                <td>{{ v.building_name or '—' }}</td>
+                <td>{{ v.elev_code }} {% if v.elev_name %}— {{ v.elev_name }}{% endif %}</td>
+                <td>{{ v.building_address or '—' }}</td>
+                <td class="text-left">{{ v.customer_phone or '—' }}</td>
+                <td>{{ v.tech_name or '—' }}</td>
+                <td>
+                    {% if v.status == 'done' %}
+                    <span class="badge" style="background:#d5f5e3;color:#1e8449;">انجام شد</span>
+                    {% else %}
+                    <span class="badge" style="background:#fdebd0;color:#b9770e;">در انتظار</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <form method="post" action="{{ url_for('elev_visit_quick_done', vid=v.id) }}" style="display:inline;">
+                        <input type="hidden" name="next" value="{{ url_for('elev_today', date=date_q, q=q) }}">
+                        <button type="submit" class="btn btn-sm {% if v.status=='done' %}btn-secondary{% else %}btn-success{% endif %}">
+                            {% if v.status == 'done' %}✓ انجام شده — لغو{% else %}☐ تیک بزن{% endif %}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" style="text-align:center;">نوبتی برای این تاریخ ثبت نشده.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

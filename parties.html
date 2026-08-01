@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}فاکتور فروش | حسابداری آریو{% endblock %}
+{% block page_title %}<strong>ثبت فاکتور فروش</strong>{% endblock %}
+{% block extra_css %}
+<style>
+    .inv-head { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:12px; margin-bottom:6px; }
+    .inv-no-box {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+        color:#fff; border-radius: 10px; padding: 12px 16px; text-align:center;
+    }
+    .inv-no-box .lbl { font-size:.72rem; opacity:.85; }
+    .inv-no-box .val { font-size:1.05rem; font-weight:800; direction:ltr; }
+    .party-info-box {
+        background:#f8fafc; border:1px dashed var(--border); border-radius:9px;
+        padding:8px 12px; font-size:.82rem; color:var(--muted); margin-top:8px; display:none;
+    }
+    .party-info-box.show { display:block; }
+    .inv-table th, .inv-table td { text-align:center; }
+    .inv-table td:nth-child(2), .inv-table th:nth-child(2) { text-align:right; }
+    .row-total { font-weight:700; color:var(--primary); white-space:nowrap; }
+    .totals-box {
+        margin-top: 16px; display:flex; justify-content:flex-end;
+    }
+    .totals-inner {
+        width: 100%; max-width: 380px; background:#f8fafc; border-radius: 10px;
+        padding: 14px 16px; border:1px solid var(--border);
+    }
+    .totals-inner .line { display:flex; justify-content:space-between; padding:6px 0; font-size:.9rem; }
+    .totals-inner .line input { width:90px; text-align:center; padding:4px 6px; }
+    .totals-inner .grand { border-top:2px solid var(--primary); margin-top:6px; padding-top:10px; font-size:1.15rem; font-weight:800; color:var(--primary); }
+    .amount-words { margin-top:8px; font-size:.82rem; color:var(--muted); background:#fff; border-radius:8px; padding:8px 10px; border:1px solid var(--border); }
+    @media (max-width: 900px) {
+        .totals-box { justify-content:stretch; }
+        .totals-inner { max-width:100%; }
+        .inv-table { min-width: 640px; }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="inv-head">
+        <div class="inv-no-box">
+            <div class="lbl">شماره فاکتور (خودکار)</div>
+            <div class="val">{{ next_no }}</div>
+        </div>
+        <div class="form-group" style="margin:0;">
+            <label>تاریخ فاکتور</label>
+            <input type="text" id="invDate" name="invoice_date" form="invForm" class="form-control" value="{{ today }}">
+        </div>
+    </div>
+
+    <form method="post" id="invForm">
+        <div class="form-row" style="margin-top:10px;">
+            <div class="form-group">
+                <label>مشتری *</label>
+                <select name="party_id" id="partySelect" class="form-control" required onchange="showPartyInfo()">
+                    <option value="">— انتخاب مشتری —</option>
+                    {% for p in parties %}
+                    <option value="{{ p.id }}" data-phone="{{ p.phone or '' }}" data-address="{{ p.address or '' }}">{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="party-info-box" id="partyInfoBox"></div>
+            </div>
+            <div class="form-group">
+                <label>شرح فاکتور</label>
+                <input type="text" name="description" class="form-control" placeholder="توضیح اختیاری...">
+            </div>
+        </div>
+
+        <h3 style="margin:20px 0 10px;">اقلام فاکتور</h3>
+        <div class="table-wrap">
+        <table class="inv-table">
+            <thead>
+                <tr>
+                    <th style="width:4%">ردیف</th>
+                    <th style="width:28%">کالا / خدمات</th>
+                    <th style="width:10%">تعداد</th>
+                    <th style="width:15%">قیمت واحد</th>
+                    <th style="width:13%">تخفیف</th>
+                    <th style="width:15%">جمع ردیف</th>
+                    <th style="width:5%"></th>
+                </tr>
+            </thead>
+            <tbody id="invLines">
+                <tr>
+                    <td class="row-num">1</td>
+                    <td>
+                        <select name="product_id[]" class="form-control" onchange="setPrice(this)">
+                            <option value="">— انتخاب کالا —</option>
+                            {% for p in products %}
+                            <option value="{{ p.id }}" data-price="{{ p.sell_price }}" data-stock="{{ p.stock_qty }}">
+                                {{ p.code }} — {{ p.name }} (موجودی: {{ p.stock_qty }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td><input type="number" step="0.01" name="qty[]" class="form-control qty" value="1" oninput="calcLine(this)"></td>
+                    <td><input type="number" step="1" name="unit_price[]" class="form-control price" value="0" oninput="calcLine(this)"></td>
+                    <td><input type="number" step="1" name="line_discount[]" class="form-control disc" value="0" oninput="calcLine(this)"></td>
+                    <td class="row-total text-left">0</td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+        </div>
+        <p style="margin-top:10px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="addInvLine()">+ ردیف جدید</button>
+        </p>
+
+        <div class="totals-box">
+            <div class="totals-inner">
+                <div class="line"><span>جمع کل اقلام:</span><span class="text-left" id="sumSubtotal">0</span></div>
+                <div class="line"><span>تخفیف کل فاکتور:</span><input type="number" name="invoice_discount" id="invDiscount" class="form-control" value="0" oninput="calcTotals()"></div>
+                <div class="line"><span>مالیات بر ارزش افزوده (٪):</span><input type="number" name="tax_percent" id="taxPercent" class="form-control" value="0" oninput="calcTotals()"></div>
+                <div class="line"><span>مبلغ مالیات:</span><span class="text-left" id="sumTax">0</span></div>
+                <div class="line grand"><span>مبلغ نهایی قابل پرداخت:</span><span class="text-left" id="sumFinal">0</span></div>
+                <div class="amount-words" id="amountWords">مبلغ به حروف: صفر ریال</div>
+            </div>
+        </div>
+
+        <p style="margin-top:16px;">
+            <button type="submit" class="btn btn-success">ثبت فاکتور و سند حسابداری</button>
+            <a href="{{ url_for('invoices') }}" class="btn btn-secondary">انصراف</a>
+        </p>
+    </form>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const prodOptions = `{% for p in products %}<option value="{{ p.id }}" data-price="{{ p.sell_price }}" data-stock="{{ p.stock_qty }}">{{ p.code }} — {{ p.name }} (موجودی: {{ p.stock_qty }})</option>{% endfor %}`;
+
+function renumberRows() {
+    document.querySelectorAll('#invLines tr').forEach((tr, idx) => {
+        const c = tr.querySelector('.row-num');
+        if (c) c.textContent = idx + 1;
+    });
+}
+
+function addInvLine() {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td class="row-num"></td>
+        <td><select name="product_id[]" class="form-control" onchange="setPrice(this)"><option value="">— انتخاب کالا —</option>${prodOptions}</select></td>
+        <td><input type="number" step="0.01" name="qty[]" class="form-control qty" value="1" oninput="calcLine(this)"></td>
+        <td><input type="number" step="1" name="unit_price[]" class="form-control price" value="0" oninput="calcLine(this)"></td>
+        <td><input type="number" step="1" name="line_discount[]" class="form-control disc" value="0" oninput="calcLine(this)"></td>
+        <td class="row-total text-left">0</td>
+        <td><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();renumberRows();calcTotals();">×</button></td>
+    `;
+    document.getElementById('invLines').appendChild(tr);
+    renumberRows();
+}
+
+function setPrice(sel) {
+    const opt = sel.options[sel.selectedIndex];
+    const price = opt.getAttribute('data-price') || 0;
+    const tr = sel.closest('tr');
+    tr.querySelector('.price').value = price;
+    calcLine(sel);
+}
+
+function calcLine(el) {
+    const tr = el.closest('tr');
+    const q = parseFloat(tr.querySelector('.qty').value) || 0;
+    const p = parseFloat(tr.querySelector('.price').value) || 0;
+    const d = parseFloat(tr.querySelector('.disc').value) || 0;
+    const total = Math.max(q * p - d, 0);
+    tr.querySelector('.row-total').textContent = total.toLocaleString('en-US');
+    calcTotals();
+}
+
+function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+
+function calcTotals() {
+    let subtotal = 0;
+    document.querySelectorAll('#invLines tr').forEach(tr => {
+        const q = parseFloat(tr.querySelector('.qty')?.value) || 0;
+        const p = parseFloat(tr.querySelector('.price')?.value) || 0;
+        const d = parseFloat(tr.querySelector('.disc')?.value) || 0;
+        subtotal += Math.max(q * p - d, 0);
+    });
+    const invDiscount = parseFloat(document.getElementById('invDiscount').value) || 0;
+    const taxPercent = parseFloat(document.getElementById('taxPercent').value) || 0;
+    const afterDiscount = Math.max(subtotal - invDiscount, 0);
+    const taxAmount = Math.round(afterDiscount * taxPercent / 100);
+    const finalTotal = afterDiscount + taxAmount;
+
+    document.getElementById('sumSubtotal').textContent = fmt(subtotal);
+    document.getElementById('sumTax').textContent = fmt(taxAmount);
+    document.getElementById('sumFinal').textContent = fmt(finalTotal);
+    document.getElementById('amountWords').textContent = 'مبلغ به حروف: ' + numberToPersianWords(Math.round(finalTotal)) + ' ریال';
+}
+
+function showPartyInfo() {
+    const sel = document.getElementById('partySelect');
+    const opt = sel.options[sel.selectedIndex];
+    const box = document.getElementById('partyInfoBox');
+    const phone = opt.getAttribute('data-phone');
+    const address = opt.getAttribute('data-address');
+    if (phone || address) {
+        box.innerHTML = (phone ? '📞 ' + phone : '') + (phone && address ? ' — ' : '') + (address ? '📍 ' + address : '');
+        box.classList.add('show');
+    } else {
+        box.classList.remove('show');
+    }
+}
+
+// تبدیل عدد به حروف فارسی (ساده و کاربردی برای مبالغ فاکتور)
+function numberToPersianWords(num) {
+    if (num === 0) return 'صفر';
+    const yekan = ['', 'یک', 'دو', 'سه', 'چهار', 'پنج', 'شش', 'هفت', 'هشت', 'نه'];
+    const dahgan = ['', '', 'بیست', 'سی', 'چهل', 'پنجاه', 'شصت', 'هفتاد', 'هشتاد', 'نود'];
+    const dahyek = ['ده', 'یازده', 'دوازده', 'سیزده', 'چهارده', 'پانزده', 'شانزده', 'هفده', 'هجده', 'نوزده'];
+    const sadgan = ['', 'صد', 'دویست', 'سیصد', 'چهارصد', 'پانصد', 'ششصد', 'هفتصد', 'هشتصد', 'نهصد'];
+    const scales = ['', ' هزار', ' میلیون', ' میلیارد', ' هزار میلیارد'];
+
+    function threeDigit(n) {
+        const parts = [];
+        const s = Math.floor(n / 100);
+        const t = Math.floor((n % 100) / 10);
+        const y = n % 10;
+        if (s) parts.push(sadgan[s]);
+        if (t === 1) parts.push(dahyek[y]);
+        else {
+            if (t) parts.push(dahgan[t]);
+            if (y) parts.push(yekan[y]);
+        }
+        return parts.join(' و ');
+    }
+
+    if (num < 0) return 'منفی ' + numberToPersianWords(-num);
+    let groups = [];
+    let n = Math.floor(num);
+    if (n === 0) return 'صفر';
+    let scaleIdx = 0;
+    while (n > 0) {
+        const g = n % 1000;
+        if (g > 0) groups.unshift(threeDigit(g) + scales[scaleIdx]);
+        n = Math.floor(n / 1000);
+        scaleIdx++;
+    }
+    return groups.join(' و ');
+}
+
+document.addEventListener('DOMContentLoaded', calcTotals);
+</script>
+{% endblock %}

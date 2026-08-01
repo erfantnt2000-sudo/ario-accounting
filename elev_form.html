@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}مجتمع‌ها{% endblock %}
+{% block page_title %}<strong>مجتمع‌ها</strong>{% endblock %}
+{% block content %}
+<div class="card">
+<div style="display:flex;justify-content:space-between;margin-bottom:12px;"><h2 style="margin:0;">فهرست مجتمع</h2>
+<a href="{{ url_for('elev_complex_add') }}" class="btn btn-primary">+ مجتمع جدید</a></div>
+<table><thead><tr><th>کد</th><th>نام</th><th>شهر</th><th>مدیر</th><th>تلفن</th></tr></thead>
+<tbody>{% for r in rows %}<tr><td>{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.city or '—' }}</td><td>{{ r.manager_name or '—' }}</td><td class="text-left">{{ r.manager_phone or '—' }}</td></tr>{% else %}<tr><td colspan="5" style="text-align:center;">خالی</td></tr>{% endfor %}</tbody></table>
+</div>
+{% endblock %}

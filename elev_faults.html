@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}مجتمع جدید{% endblock %}
+{% block page_title %}<strong>ثبت مجتمع</strong>{% endblock %}
+{% block content %}
+<div class="card" style="max-width:600px;">
+<form method="post">
+<div class="form-row">
+<div class="form-group"><label>کد</label><input name="code" class="form-control"></div>
+<div class="form-group"><label>نام *</label><input name="name" class="form-control" required></div>
+</div>
+<div class="form-group"><label>آدرس</label><input name="address" class="form-control"></div>
+<div class="form-row">
+<div class="form-group"><label>شهر</label><input name="city" class="form-control"></div>
+<div class="form-group"><label>نام مدیر</label><input name="manager_name" class="form-control"></div>
+<div class="form-group"><label>تلفن مدیر</label><input name="manager_phone" class="form-control"></div>
+</div>
+<div class="form-group"><label>یادداشت</label><textarea name="notes" class="form-control" rows="2"></textarea></div>
+<button class="btn btn-primary">ذخیره</button>
+<a href="{{ url_for('elev_complexes') }}" class="btn btn-secondary">انصراف</a>
+</form></div>
+{% endblock %}

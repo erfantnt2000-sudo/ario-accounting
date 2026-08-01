@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}برنامه سرویس{% endblock %}
+{% block page_title %}<strong>برنامه سرویس ماهانه و ثبت بازدید</strong>{% endblock %}
+{% block content %}
+<div class="card">
+<h3>برنامه‌ریزی بازدید جدید</h3>
+<form method="post" action="{{ url_for('elev_visit_add') }}" class="form-row" style="align-items:end;">
+<div class="form-group"><label>آسانسور *</label>
+<select name="elevator_id" class="form-control" required>
+<option value="">—</option>{% for e in elevators %}<option value="{{ e.id }}">{{ e.code }}</option>{% endfor %}
+</select></div>
+<div class="form-group"><label>قرارداد</label>
+<select name="contract_id" class="form-control"><option value="">—</option>{% for c in contracts %}<option value="{{ c.id }}">{{ c.contract_no }}</option>{% endfor %}</select></div>
+<div class="form-group"><label>سرویس‌کار</label>
+<select name="technician_id" class="form-control"><option value="">—</option>{% for t in techs %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
+<div class="form-group"><label>تاریخ برنامه</label><input name="planned_date" class="form-control" value="{{ today }}"></div>
+<div class="form-group"><label>نوع</label>
+<select name="visit_type" class="form-control"><option value="periodic">دوره‌ای</option><option value="emergency">اضطراری</option></select></div>
+<div class="form-group"><button class="btn btn-primary">ثبت برنامه</button></div>
+</form>
+</div>
+<div class="card">
+<h2>لیست بازدیدها</h2>
+<table>
+<thead><tr><th>تاریخ برنامه</th><th>آسانسور</th><th>سرویس‌کار</th><th>وضعیت</th><th>ثبت گزارش</th></tr></thead>
+<tbody>
+{% for v in rows %}
+<tr>
+<td>{{ v.planned_date }}</td>
+<td>{{ v.elev_code }} — {{ v.elev_name or '' }}</td>
+<td>{{ v.tech_name or '—' }}</td>
+<td>{% if v.status=='done' %}<span class="badge" style="background:#d5f5e3;color:#1e8449;">انجام شد</span>{% elif v.status=='planned' %}<span class="badge">برنامه</span>{% else %}{{ v.status }}{% endif %}</td>
+<td>
+{% if v.status != 'done' %}
+<form method="post" action="{{ url_for('elev_visit_done', vid=v.id) }}" class="mobile-stack-form" style="display:flex;gap:6px;flex-wrap:wrap;">
+<input name="visit_date" class="form-control" style="width:110px;" value="{{ today }}" placeholder="تاریخ">
+<input name="report_text" class="form-control" style="width:160px;" placeholder="گزارش">
+<input name="customer_sign" class="form-control" style="width:100px;" placeholder="امضا/نام">
+<button class="btn btn-sm btn-success">ثبت انجام</button>
+</form>
+{% else %}{{ v.report_text or '—' }}{% endif %}
+</td>
+</tr>
+{% else %}<tr><td colspan="5" style="text-align:center;">بازدیدی نیست</td></tr>{% endfor %}
+</tbody></table>
+</div>
+{% endblock %}

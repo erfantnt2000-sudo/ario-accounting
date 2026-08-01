@@ -175,6 +175,24 @@ def init_elevator_tables():
         )
     """)
 
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS visit_checklist (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            visit_id INTEGER NOT NULL,
+            item_key TEXT NOT NULL,
+            item_label TEXT,
+            is_ok INTEGER DEFAULT 0,
+            note TEXT,
+            FOREIGN KEY (visit_id) REFERENCES service_visits(id)
+        )
+    """)
+    # link sample tech user if exists
+    try:
+        u = c.execute("SELECT id FROM users WHERE username='tech'").fetchone()
+        if u:
+            c.execute("UPDATE technicians SET user_id=? WHERE code='T01' AND (user_id IS NULL OR user_id=0)", (u[0] if not hasattr(u,'keys') else u['id'],))
+    except Exception:
+        pass
     conn.commit()
     conn.close()
     print("Elevator tables ready.")
@@ -215,6 +233,14 @@ def seed_elevator_sample():
     # planned visit
     c.execute("""INSERT INTO service_visits (contract_id,elevator_id,technician_id,planned_date,status,created_at)
                  VALUES (?,?,?,?,?,?)""", (c.execute("SELECT id FROM contracts LIMIT 1").fetchone()[0], eid, 1, start, "planned", now))
+    # link tech user before close
+    try:
+        u = c.execute("SELECT id FROM users WHERE username='tech'").fetchone()
+        if u:
+            uid = u[0]
+            c.execute("UPDATE technicians SET user_id=? WHERE id=(SELECT id FROM technicians ORDER BY id LIMIT 1)", (uid,))
+    except Exception as e:
+        print("tech link:", e)
     conn.commit()
     conn.close()
     print("Sample elevator data seeded.")

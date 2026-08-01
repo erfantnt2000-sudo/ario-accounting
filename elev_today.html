@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}پرونده آسانسور{% endblock %}
+{% block page_title %}<strong>پرونده آسانسورها</strong>{% endblock %}
+{% block content %}
+<div class="card">
+<div style="display:flex;justify-content:space-between;margin-bottom:12px;"><h2 style="margin:0;">لیست آسانسور</h2>
+<a href="{{ url_for('elev_add') }}" class="btn btn-primary">+ پرونده جدید</a></div>
+<table>
+<thead><tr><th>کد</th><th>نام</th><th>ساختمان</th><th>مجتمع</th><th>برند</th><th>مدل</th><th>ظرفیت</th><th>توقف</th><th>وضعیت</th></tr></thead>
+<tbody>
+{% for r in rows %}
+<tr>
+<td class="text-left"><strong>{{ r.code }}</strong></td>
+<td>{{ r.name or '—' }}</td>
+<td>{{ r.building_name or '—' }}</td>
+<td>{{ r.complex_name or '—' }}</td>
+<td>{{ r.brand or '—' }}</td>
+<td>{{ r.model or '—' }}</td>
+<td>{{ r.capacity or '—' }}</td>
+<td>{{ r.stops }}</td>
+<td>{{ r.status }}</td>
+</tr>
+{% else %}<tr><td colspan="9" style="text-align:center;">پرونده‌ای نیست</td></tr>{% endfor %}
+</tbody></table>
+</div>
+{% endblock %}

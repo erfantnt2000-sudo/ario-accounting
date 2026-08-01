@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}پنل سرویس‌کار{% endblock %}
+{% block page_title %}<strong>کارهای امروز</strong>{% endblock %}
+{% block content %}
+<div class="stats">
+  <div class="stat-box"><div class="num">{{ visits|length }}</div><div class="label">سرویس باقی‌مانده</div></div>
+  <div class="stat-box"><div class="num">{{ faults|length }}</div><div class="label">خرابی باز</div></div>
+  <div class="stat-box"><div class="num">{{ done_today }}</div><div class="label">انجام‌شده امروز</div></div>
+</div>
+
+<div class="card">
+  <h2>🛠️ سرویس‌های امروز ({{ today }})</h2>
+  {% for v in visits %}
+  <div class="tech-job">
+    <div class="tech-job-title">{{ v.building_name or '—' }} — {{ v.elev_code }}</div>
+    <div class="tech-job-meta">
+      {% if v.customer_name %}کارفرما: {{ v.customer_name }}{% endif %}
+      {% if v.customer_phone %} · 📞 {{ v.customer_phone }}{% endif %}
+      {% if v.building_address %}<br>📍 {{ v.building_address }}{% endif %}
+    </div>
+    <a class="btn btn-primary" style="width:100%;margin-top:10px;" href="{{ url_for('tech_visit_report', vid=v.id) }}">ثبت گزارش و چک‌لیست</a>
+  </div>
+  {% else %}
+  <p style="text-align:center;color:var(--muted);padding:16px;">سرویس برنامه‌ریزی‌شده برای امروز نیست.</p>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>⚠️ خرابی‌های باز / اعزام‌شده</h2>
+  {% for f in faults %}
+  <div class="tech-job" style="border-right:4px solid {% if f.priority=='critical' %}#e74c3c{% elif f.priority=='high' %}#f39c12{% else %}#3282b8{% endif %};">
+    <div class="tech-job-title">{{ f.elev_code }} — {{ f.building_name or '' }}</div>
+    <div class="tech-job-meta">{{ f.description }}<br>
+      <span class="badge">{{ f.priority }}</span> · {{ f.report_date }} {% if f.customer_phone %}· {{ f.customer_phone }}{% endif %}
+    </div>
+  </div>
+  {% else %}
+  <p style="text-align:center;color:var(--muted);padding:12px;">خرابی بازی به شما محول نشده.</p>
+  {% endfor %}
+</div>
+{% endblock %}

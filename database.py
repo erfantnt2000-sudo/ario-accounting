@@ -207,6 +207,7 @@ def init_db():
     c.execute("SELECT COUNT(*) FROM users")
     if c.fetchone()[0] == 0:
         c.execute("INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)", ("admin", "admin", "مدیر سیستم", "admin"))
+        c.execute("INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)", ("tech", "tech", "سرویس‌کار نمونه", "technician"))
 
     c.execute("SELECT COUNT(*) FROM parties")
     if c.fetchone()[0] == 0:

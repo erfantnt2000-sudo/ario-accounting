@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}سود قرارداد و ساختمان{% endblock %}
+{% block page_title %}<strong>گزارش سود هر قرارداد و ساختمان</strong>{% endblock %}
+{% block content %}
+<div class="card">
+<h2>به تفکیک قرارداد</h2>
+<table>
+<thead><tr><th>قرارداد</th><th>مشتری</th><th>ساختمان</th><th>مبلغ قرارداد</th><th>هزینه تعمیر</th><th>مانده تقریبی</th></tr></thead>
+<tbody>
+{% for r in by_contract %}
+{% set profit = (r.contract_amount or 0) - (r.repair_cost or 0) %}
+<tr>
+<td>{{ r.contract_no }}</td>
+<td>{{ r.customer_name or '—' }}</td>
+<td>{{ r.building_name or '—' }}</td>
+<td class="text-left">{{ "{:,.0f}".format(r.contract_amount or 0) }}</td>
+<td class="text-left">{{ "{:,.0f}".format(r.repair_cost or 0) }}</td>
+<td class="text-left" style="font-weight:bold;color:{% if profit>=0 %}#27ae60{% else %}#c0392b{% endif %};">{{ "{:,.0f}".format(profit) }}</td>
+</tr>
+{% else %}<tr><td colspan="6" style="text-align:center;">داده‌ای نیست</td></tr>{% endfor %}
+</tbody></table>
+</div>
+<div class="card">
+<h2>به تفکیک ساختمان</h2>
+<table>
+<thead><tr><th>ساختمان</th><th>جمع قرارداد</th><th>جمع تعمیرات</th><th>مانده</th></tr></thead>
+<tbody>
+{% for r in by_building %}
+{% set profit = (r.contract_sum or 0) - (r.repair_sum or 0) %}
+<tr>
+<td>{{ r.building_name }}</td>
+<td class="text-left">{{ "{:,.0f}".format(r.contract_sum or 0) }}</td>
+<td class="text-left">{{ "{:,.0f}".format(r.repair_sum or 0) }}</td>
+<td class="text-left" style="font-weight:bold;">{{ "{:,.0f}".format(profit) }}</td>
+</tr>
+{% else %}<tr><td colspan="4" style="text-align:center;">داده‌ای نیست</td></tr>{% endfor %}
+</tbody></table>
+</div>
+{% endblock %}
