@@ -17,12 +17,23 @@ from database import (init_db, get_connection, get_next_voucher_no, today_jalali
 from elevator_models import init_elevator_tables, seed_elevator_sample
 
 app = Flask(__name__)
+
+# پشت پروکسی Render/Railway تا HTTPS و IP درست تشخیص داده شود
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+_is_cloud = bool(os.environ.get("PORT") or os.environ.get("RENDER") or os.environ.get("RAILWAY_ENVIRONMENT"))
 _env_secret = os.environ.get("SECRET_KEY")
 if _env_secret:
     app.secret_key = _env_secret
+elif _is_cloud:
+    # روی کلود بدون SECRET_KEY: کلید ثابتِ موقت تا لاگین کار کند
+    # حتماً در داشبورد Render متغیر SECRET_KEY را تنظیم کنید
+    app.secret_key = "ario-render-fallback-change-me-2026"
+    print("⚠️  SECRET_KEY در Environment تنظیم نشده. یک کلید موقت استفاده می‌شود.")
+    print("   در Render → Environment → SECRET_KEY را به یک رشته تصادفی تنظیم کنید.")
 else:
-    # برای اجرای محلی: کلید را در فایل کنار دیتابیس نگه می‌داریم تا با هر ری‌استارت نشست‌ها باطل نشوند
-    # (در دیپلوی واقعی حتماً SECRET_KEY را در Environment تنظیم کنید)
+    # اجرای محلی: کلید را در فایل نگه می‌داریم
     _secret_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", ".secret_key")
     try:
         os.makedirs(os.path.dirname(_secret_file), exist_ok=True)
@@ -35,9 +46,15 @@ else:
                 f.write(app.secret_key)
     except Exception:
         app.secret_key = secrets.token_hex(32)
-        print("⚠️  نتوانستیم SECRET_KEY را روی دیسک ذخیره کنیم؛ کلید موقت استفاده می‌شود.")
-app.config['TEMPLATES_AUTO_RELOAD'] = not (os.environ.get('PORT') or os.environ.get('RENDER'))
 
+# کوکی نشست برای HTTPS (Render) و جلوگیری از مشکل لاگین
+app.config.update(
+    TEMPLATES_AUTO_RELOAD=not _is_cloud,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=_is_cloud,  # فقط روی HTTPS ابری
+    PREFERRED_URL_SCHEME="https" if _is_cloud else "http",
+)
 # --- Performance: cache static, security headers ---
 @app.after_request
 def add_perf_headers(response):
@@ -65,10 +82,18 @@ def inject_csrf_token():
 @app.before_request
 def csrf_protect():
     if request.method == "POST":
+        # مسیرهای بدون CSRF (فعلاً فقط health)
+        if request.endpoint in ("health",):
+            return
         form_token = request.form.get("csrf_token")
         session_token = session.get("_csrf_token")
-        if not form_token or not session_token or not secrets.compare_digest(form_token, session_token):
-            flash("نشست شما منقضی شده یا درخواست نامعتبر است؛ لطفاً دوباره تلاش کنید.", "danger")
+        if not form_token or not session_token or not secrets.compare_digest(str(form_token), str(session_token)):
+            # توکن را نوسازی کن تا صفحه بعدی کار کند
+            session.pop("_csrf_token", None)
+            flash("نشست منقضی شده. لطفاً دوباره وارد شوید یا صفحه را رفرش کنید.", "danger")
+            # اگر خود لاگین بود، فقط همان صفحه را دوباره نشان بده
+            if request.endpoint == "login":
+                return redirect(url_for("login"))
             return redirect(request.referrer or url_for("login"))
 
 
@@ -116,6 +141,12 @@ SERVICE_CHECKLIST = [
     ("overall", "وضعیت کلی ایمن برای بهره‌برداری"),
 ]
 
+
+
+@app.route("/health")
+def health():
+    """برای health-check سرویس ابری (Render و غیره)"""
+    return {"status": "ok", "app": "ario-accounting"}, 200
 
 
 @app.route("/login", methods=["GET", "POST"])
