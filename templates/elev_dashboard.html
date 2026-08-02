@@ -1,6 +1,24 @@
 {% extends "base.html" %}
 {% block title %}داشبورد آسانسور{% endblock %}
 {% block page_title %}<strong>داشبورد مدیریت سرویس آسانسور</strong>{% endblock %}
+{% block extra_css %}
+<style>
+    .chart-card { min-height: 260px; }
+    .chart-card canvas { max-height: 220px; }
+    .team-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px dashed var(--border); }
+    .team-row:last-child { border-bottom:none; }
+    .team-donut {
+        width:44px; height:44px; border-radius:50%; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center;
+        font-size:0.68rem; font-weight:800; color:var(--primary);
+        background: conic-gradient(var(--accent) calc(var(--p) * 1%), #eee2f0 0);
+    }
+    .team-donut span { background:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+    .team-info { flex:1; }
+    .team-name { font-size:0.85rem; font-weight:700; }
+    .team-sub { font-size:0.72rem; color:var(--muted); }
+</style>
+{% endblock %}
 {% block content %}
 {% if expiring %}
 <div class="alert-banner">
@@ -13,13 +31,48 @@
 </div>
 {% endif %}
 
+<div class="g-stats">
+    <div class="g-card"><div class="ic">📄</div><div class="num">{{ stats.expiring_soon }}</div><div class="label">قراردادهای رو به انقضا</div></div>
+    <div class="g-card"><div class="ic">🛠️</div><div class="num">{{ stats.open_faults }}</div><div class="label">خرابی‌های باز</div></div>
+    <div class="g-card"><div class="ic">✅</div><div class="num">{{ stats.done_this_month }}</div><div class="label">خدمات انجام‌شده این ماه</div></div>
+    <div class="g-card"><div class="ic">🚫</div><div class="num">{{ stats.overdue }}</div><div class="label">سرویس‌های عقب‌افتاده</div></div>
+</div>
+
 <div class="stats">
     <div class="stat-box"><div class="num">{{ stats.complexes }}</div><div class="label">مجتمع</div></div>
     <div class="stat-box"><div class="num">{{ stats.buildings }}</div><div class="label">ساختمان</div></div>
     <div class="stat-box"><div class="num">{{ stats.elevators }}</div><div class="label">آسانسور</div></div>
     <div class="stat-box"><div class="num">{{ stats.contracts }}</div><div class="label">قرارداد فعال</div></div>
-    <div class="stat-box"><div class="num">{{ stats.open_faults }}</div><div class="label">خرابی باز</div></div>
-    <div class="stat-box"><div class="num">{{ stats.overdue }}</div><div class="label">سرویس عقب‌افتاده</div></div>
+</div>
+
+<div class="card chart-card">
+    <h3>کل بدهی — دریافتی در برابر خدمات</h3>
+    <canvas id="trendChart"></canvas>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;">
+    <div class="card chart-card">
+        <h3>شغل برای انجام</h3>
+        <canvas id="jobsChart"></canvas>
+    </div>
+    <div class="card">
+        <h3>تیم فنی</h3>
+        {% for t in team %}
+        <div class="team-row">
+            <div class="team-donut" style="--p:{{ t.pct }};"><span>{{ t.pct }}٪</span></div>
+            <div class="team-info">
+                <div class="team-name">{{ t.name }}</div>
+                <div class="team-sub">{{ t.done }} از {{ t.total }} سرویس انجام‌شده</div>
+            </div>
+        </div>
+        {% else %}
+        <p style="color:var(--muted);font-size:0.85rem;">سرویس‌کاری ثبت نشده.</p>
+        {% endfor %}
+    </div>
+    <div class="card chart-card">
+        <h3>خدمات و خرابی</h3>
+        <canvas id="svcFaultChart"></canvas>
+    </div>
 </div>
 
 <div class="card">
@@ -57,4 +110,55 @@
         </tbody>
     </table>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+(function() {
+    var data = {{ chart_data | tojson }};
+    var purple = '#7b2d8e', magenta = '#d6249f', green = '#22b573', orange = '#f5a623';
+
+    function mkChart(id, config) {
+        var el = document.getElementById(id);
+        if (!el || typeof Chart === 'undefined') return;
+        new Chart(el.getContext('2d'), config);
+    }
+
+    mkChart('trendChart', {
+        type: 'line',
+        data: {
+            labels: data.months,
+            datasets: [
+                { label: 'دریافتی', data: data.trend_received, borderColor: green, backgroundColor: 'transparent', tension: 0.35, pointRadius: 3 },
+                { label: 'خدمات', data: data.trend_service, borderColor: magenta, backgroundColor: 'transparent', tension: 0.35, pointRadius: 3 }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    mkChart('jobsChart', {
+        type: 'bar',
+        data: {
+            labels: data.months,
+            datasets: [
+                { label: 'در انتظار', data: data.jobs_planned, backgroundColor: orange },
+                { label: 'انجام‌شده', data: data.jobs_done, backgroundColor: purple }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } }, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    mkChart('svcFaultChart', {
+        type: 'bar',
+        data: {
+            labels: data.months,
+            datasets: [
+                { label: 'خدمات', data: data.svc_count, backgroundColor: magenta },
+                { label: 'خرابی', data: data.fault_count, backgroundColor: '#e74c3c' }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+})();
+</script>
 {% endblock %}

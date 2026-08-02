@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}تقویم سرویس | حسابداری آریو{% endblock %}
+{% block page_title %}<strong>تقویم سرویس آسانسور</strong>{% endblock %}
+{% block extra_css %}
+<style>
+    .cal-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+    .cal-title { font-size:1.15rem; font-weight:800; color:var(--primary); }
+    .cal-nav { display:flex; gap:6px; align-items:center; }
+    .cal-grid { display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; }
+    .cal-dow { text-align:center; font-size:0.78rem; font-weight:700; color:var(--muted); padding:6px 0; }
+    .cal-cell {
+        background:#fff; border:1px solid var(--border); border-radius:10px;
+        min-height:110px; padding:6px; display:flex; flex-direction:column; gap:4px;
+    }
+    .cal-cell.empty { background:transparent; border:none; }
+    .cal-cell.today { border-color:var(--accent2); box-shadow:0 0 0 2px rgba(245,130,31,0.18); }
+    .cal-daynum { font-size:0.8rem; font-weight:700; color:var(--text); text-align:left; direction:ltr; }
+    .cal-cell.today .cal-daynum { color:var(--accent2); }
+    .cal-pill {
+        font-size:0.66rem; padding:3px 6px; border-radius:6px; color:#fff;
+        overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:default;
+    }
+    .cal-more { font-size:0.62rem; color:var(--muted); text-align:center; }
+    @media (max-width: 900px) {
+        .cal-grid { grid-template-columns: repeat(7, minmax(60px,1fr)); overflow-x:auto; }
+        .cal-cell { min-height:90px; }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="cal-head">
+        <div class="cal-title">{{ month_name }} {{ y }}</div>
+        <div class="cal-nav">
+            <a href="{{ url_for('elev_calendar', y=prev_y, m=prev_m) }}" class="btn btn-sm btn-secondary">◄ قبل</a>
+            <a href="{{ url_for('elev_calendar') }}" class="btn btn-sm btn-primary">امروز</a>
+            <a href="{{ url_for('elev_calendar', y=next_y, m=next_m) }}" class="btn btn-sm btn-secondary">بعد ►</a>
+        </div>
+    </div>
+
+    <div class="cal-grid">
+        <div class="cal-dow">شنبه</div>
+        <div class="cal-dow">یکشنبه</div>
+        <div class="cal-dow">دوشنبه</div>
+        <div class="cal-dow">سه‌شنبه</div>
+        <div class="cal-dow">چهارشنبه</div>
+        <div class="cal-dow">پنجشنبه</div>
+        <div class="cal-dow">جمعه</div>
+
+        {% set colors = ['#a244b8','#d6249f','#22b573','#3ba0d6','#f5a623','#e74c3c','#7b2d8e'] %}
+        {% for week in weeks %}
+            {% for day in week %}
+                {% if day is none %}
+                <div class="cal-cell empty"></div>
+                {% else %}
+                <div class="cal-cell {% if today_day == day %}today{% endif %}">
+                    <div class="cal-daynum">{{ day }}</div>
+                    {% set day_visits = by_day.get(day, []) %}
+                    {% for v in day_visits[:3] %}
+                    {% set c = colors[loop.index0 % colors|length] %}
+                    <div class="cal-pill" style="background:{{ c }};" title="{{ v.building_name or v.customer_name or '' }} — {{ v.elev_code }}">
+                        {% if v.status == 'done' %}✓ {% endif %}{{ v.building_name or v.customer_name or v.elev_code }}
+                    </div>
+                    {% endfor %}
+                    {% if day_visits|length > 3 %}
+                    <div class="cal-more">+{{ day_visits|length - 3 }} مورد دیگر</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card">
+    <p style="font-size:0.85rem;color:var(--muted);">
+        برای مدیریت روزانه نوبت‌ها (تیک انجام‌شده و غیره) از صفحه‌ی
+        <a href="{{ url_for('elev_today') }}">سرویس امروز</a> استفاده کنید.
+    </p>
+</div>
+{% endblock %}

@@ -966,10 +966,69 @@ def elev_dashboard():
         "contracts": conn.execute("SELECT COUNT(*) FROM contracts WHERE status='active'").fetchone()[0],
         "open_faults": conn.execute("SELECT COUNT(*) FROM faults WHERE status IN ('open','dispatched')").fetchone()[0],
         "overdue": len(overdue_visits),
+        "expiring_soon": len(expiring),
+        "done_this_month": conn.execute(
+            "SELECT COUNT(*) FROM service_visits WHERE status='done' AND substr(visit_date,1,7)=?",
+            (current_month_jalali(),)
+        ).fetchone()[0],
     }
+
+    # ---- داده نمودارها (۶ ماه اخیر بر اساس داده موجود) ----
+    months_rows = conn.execute("""
+        SELECT month FROM (
+            SELECT substr(pay_date,1,7) as month FROM payments WHERE pay_date IS NOT NULL
+            UNION
+            SELECT substr(planned_date,1,7) as month FROM service_visits WHERE planned_date IS NOT NULL
+        ) WHERE month IS NOT NULL AND month != '' ORDER BY month
+    """).fetchall()
+    months = [r["month"] for r in months_rows][-6:] or [current_month_jalali()]
+
+    trend_received, trend_service, jobs_planned, jobs_done, svc_count, fault_count = [], [], [], [], [], []
+    for mo in months:
+        trend_received.append(conn.execute(
+            "SELECT COALESCE(SUM(amount),0) FROM payments WHERE substr(pay_date,1,7)=?", (mo,)).fetchone()[0])
+        trend_service.append(conn.execute(
+            "SELECT COALESCE(SUM(amount),0) FROM service_visits WHERE substr(planned_date,1,7)=?", (mo,)).fetchone()[0])
+        jobs_planned.append(conn.execute(
+            "SELECT COUNT(*) FROM service_visits WHERE substr(planned_date,1,7)=? AND status='planned'", (mo,)).fetchone()[0])
+        jobs_done.append(conn.execute(
+            "SELECT COUNT(*) FROM service_visits WHERE substr(planned_date,1,7)=? AND status='done'", (mo,)).fetchone()[0])
+        svc_count.append(conn.execute(
+            "SELECT COUNT(*) FROM service_visits WHERE substr(planned_date,1,7)=?", (mo,)).fetchone()[0])
+        fault_count.append(conn.execute(
+            "SELECT COUNT(*) FROM faults WHERE substr(report_date,1,7)=?", (mo,)).fetchone()[0])
+
+    team_rows = conn.execute("""
+        SELECT t.name,
+               COUNT(v.id) as total,
+               SUM(CASE WHEN v.status='done' THEN 1 ELSE 0 END) as done
+        FROM technicians t
+        LEFT JOIN service_visits v ON v.technician_id = t.id
+        WHERE t.is_active=1
+        GROUP BY t.id
+        ORDER BY t.name
+    """).fetchall()
+    team = []
+    for t in team_rows:
+        total = t["total"] or 0
+        done = t["done"] or 0
+        pct = round(done / total * 100) if total else 0
+        team.append({"name": t["name"], "total": total, "done": done, "pct": pct})
+
+    chart_data = {
+        "months": months,
+        "trend_received": trend_received,
+        "trend_service": trend_service,
+        "jobs_planned": jobs_planned,
+        "jobs_done": jobs_done,
+        "svc_count": svc_count,
+        "fault_count": fault_count,
+    }
+
     conn.close()
     return render_template("elev_dashboard.html", stats=stats, expiring=expiring,
-                           overdue_visits=overdue_visits, open_faults=open_faults, today=today)
+                           overdue_visits=overdue_visits, open_faults=open_faults, today=today,
+                           chart_data=chart_data, team=team)
 
 @app.route("/elevators/complexes")
 @login_required
@@ -1183,6 +1242,79 @@ def elev_visit_done(vid):
     conn.commit(); conn.close()
     flash("گزارش بازدید ثبت شد.", "success")
     return redirect(url_for("elev_visits"))
+
+@app.route("/elevators/calendar")
+@login_required
+def elev_calendar():
+    """تقویم ماهانه سرویس‌های آسانسور — هر روز با نوبت‌های همان روز به‌صورت برچسب رنگی"""
+    today_j = jdatetime.date.today()
+    try:
+        y = int(request.args.get("y") or today_j.year)
+        m = int(request.args.get("m") or today_j.month)
+    except ValueError:
+        y, m = today_j.year, today_j.month
+    if m < 1:
+        m, y = 12, y - 1
+    elif m > 12:
+        m, y = 1, y + 1
+
+    if m <= 6:
+        days_in_month = 31
+    elif m <= 11:
+        days_in_month = 30
+    else:
+        try:
+            days_in_month = 30 if jdatetime.date(y, 12, 30) else 29
+        except ValueError:
+            days_in_month = 29
+
+    first_day = jdatetime.date(y, m, 1)
+    first_weekday = first_day.weekday()  # jdatetime: شنبه=0 ... جمعه=6
+
+    conn = get_connection()
+    start_str = f"{y:04d}/{m:02d}/01"
+    end_str = f"{y:04d}/{m:02d}/{days_in_month:02d}"
+    visits = conn.execute("""
+        SELECT v.*, e.code as elev_code, b.name as building_name, p.name as customer_name
+        FROM service_visits v
+        LEFT JOIN elevators e ON e.id = v.elevator_id
+        LEFT JOIN buildings b ON b.id = e.building_id
+        LEFT JOIN contracts c ON c.id = v.contract_id
+        LEFT JOIN parties p ON p.id = COALESCE(c.party_id, b.party_id)
+        WHERE v.planned_date BETWEEN ? AND ?
+        ORDER BY v.planned_date
+    """, (start_str, end_str)).fetchall()
+    conn.close()
+
+    by_day = {}
+    for v in visits:
+        try:
+            day_num = int(v["planned_date"].split("/")[2])
+        except (IndexError, ValueError):
+            continue
+        by_day.setdefault(day_num, []).append(v)
+
+    weeks = []
+    week = [None] * first_weekday
+    for d in range(1, days_in_month + 1):
+        week.append(d)
+        if len(week) == 7:
+            weeks.append(week)
+            week = []
+    if week:
+        week += [None] * (7 - len(week))
+        weeks.append(week)
+
+    prev_m, prev_y = (12, y - 1) if m == 1 else (m - 1, y)
+    next_m, next_y = (1, y + 1) if m == 12 else (m + 1, y)
+    month_names = ["فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور",
+                   "مهر","آبان","آذر","دی","بهمن","اسفند"]
+
+    return render_template("elev_calendar.html", weeks=weeks, by_day=by_day, y=y, m=m,
+                           month_name=month_names[m-1], prev_m=prev_m, prev_y=prev_y,
+                           next_m=next_m, next_y=next_y, today_day=(today_j.day if (today_j.year, today_j.month) == (y, m) else None),
+                           today=today_jalali())
+
 
 @app.route("/elevators/today")
 @login_required
