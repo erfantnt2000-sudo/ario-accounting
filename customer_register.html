@@ -1,40 +1,34 @@
 {% extends "base.html" %}
-{% block title %}کدینگ حساب‌ها | حسابداری آریو{% endblock %}
-{% block page_title %}<strong>کدینگ حساب‌ها</strong>{% endblock %}
+{% block title %}دفتر روزنامه | حسابداری آریو{% endblock %}
+{% block page_title %}<strong>دفتر روزنامه</strong>{% endblock %}
 {% block content %}
 <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h2 style="margin:0;">فهرست حساب‌ها</h2>
-        <a href="{{ url_for('account_add') }}" class="btn btn-primary">+ حساب جدید</a>
-    </div>
+    <h2>دفتر روزنامه</h2>
     <table>
         <thead>
             <tr>
-                <th>کد</th>
+                <th>شماره سند</th>
+                <th>تاریخ</th>
+                <th>کد حساب</th>
                 <th>نام حساب</th>
-                <th>نوع</th>
-                <th>حساب والد</th>
-                <th>عملیات</th>
+                <th>شرح</th>
+                <th>بدهکار</th>
+                <th>بستانکار</th>
             </tr>
         </thead>
         <tbody>
-            {% for a in accounts %}
+            {% for r in rows %}
             <tr>
-                <td class="text-left"><strong>{{ a.code }}</strong></td>
-                <td>{{ a.name }}</td>
-                <td>
-                    {% if a.account_type == 'asset' %}دارایی
-                    {% elif a.account_type == 'liability' %}بدهی
-                    {% elif a.account_type == 'equity' %}حقوق صاحبان سهام
-                    {% elif a.account_type == 'revenue' %}درآمد
-                    {% elif a.account_type == 'expense' %}هزینه
-                    {% else %}{{ a.account_type }}{% endif %}
-                </td>
-                <td>{{ a.parent_code or '—' }}</td>
-                <td><a href="{{ url_for('account_edit', aid=a.id) }}" class="btn btn-sm btn-secondary">ویرایش</a></td>
+                <td class="text-left">{{ r.voucher_no }}</td>
+                <td>{{ r.voucher_date }}</td>
+                <td class="text-left">{{ r.account_code }}</td>
+                <td>{{ r.account_name or '' }}</td>
+                <td>{{ r.description or r.vdesc or '' }}</td>
+                <td class="text-left">{{ "{:,.0f}".format(r.debit) if r.debit else '' }}</td>
+                <td class="text-left">{{ "{:,.0f}".format(r.credit) if r.credit else '' }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="5" style="text-align:center;">حسابی تعریف نشده است.</td></tr>
+            <tr><td colspan="7" style="text-align:center;">موردی یافت نشد.</td></tr>
             {% endfor %}
         </tbody>
     </table>

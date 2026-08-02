@@ -1,41 +1,26 @@
 {% extends "base.html" %}
-{% block title %}فاکتورها | حسابداری آریو{% endblock %}
-{% block page_title %}<strong>فاکتورهای خرید و فروش</strong>{% endblock %}
+{% block title %}قرارداد سرویس{% endblock %}
+{% block page_title %}<strong>قراردادهای سرویس</strong>{% endblock %}
 {% block content %}
 <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h2 style="margin:0;">فهرست فاکتورها</h2>
-        <a href="{{ url_for('invoice_sale') }}" class="btn btn-success">+ فاکتور فروش</a>
-    </div>
-    <table>
-        <thead>
-            <tr>
-                <th>شماره</th>
-                <th>نوع</th>
-                <th>تاریخ</th>
-                <th>طرف حساب</th>
-                <th>مبلغ نهایی</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for i in invoices %}
-            <tr>
-                <td class="text-left">{{ i.invoice_no }}</td>
-                <td>{% if i.invoice_type == 'sale' %}فروش{% else %}خرید{% endif %}</td>
-                <td>{{ i.invoice_date }}</td>
-                <td>{{ i.party_name or '—' }}</td>
-                <td class="text-left">{{ "{:,.0f}".format(i.final_amount) }}</td>
-                <td>
-                    {% if i.invoice_type == 'sale' %}
-                    <a href="{{ url_for('invoice_view', iid=i.id) }}" class="btn btn-sm btn-secondary">👁️ مشاهده / چاپ</a>
-                    {% endif %}
-                </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="6" style="text-align:center;">فاکتوری ثبت نشده.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div style="display:flex;justify-content:space-between;margin-bottom:12px;"><h2 style="margin:0;">قراردادها</h2>
+<a href="{{ url_for('elev_contract_add') }}" class="btn btn-primary">+ قرارداد</a></div>
+<table>
+<thead><tr><th>شماره</th><th>مشتری</th><th>ساختمان</th><th>آسانسور</th><th>شروع</th><th>پایان</th><th>مبلغ</th><th>بازدید/ماه</th><th>وضعیت</th></tr></thead>
+<tbody>
+{% for r in rows %}
+<tr>
+<td>{{ r.contract_no }}</td>
+<td>{{ r.customer_name or '—' }}</td>
+<td>{{ r.building_name or '—' }}</td>
+<td>{{ r.elev_code or '—' }}</td>
+<td>{{ r.start_date }}</td>
+<td>{{ r.end_date }}</td>
+<td class="text-left">{{ "{:,.0f}".format(r.amount or 0) }}</td>
+<td>{{ r.visit_per_month }}</td>
+<td>{% if r.status=='active' %}<span class="badge" style="background:#d5f5e3;color:#1e8449;">فعال</span>{% else %}{{ r.status }}{% endif %}</td>
+</tr>
+{% else %}<tr><td colspan="9" style="text-align:center;">قراردادی نیست</td></tr>{% endfor %}
+</tbody></table>
 </div>
 {% endblock %}

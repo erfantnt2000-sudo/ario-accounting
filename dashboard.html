@@ -1,87 +1,39 @@
 {% extends "base.html" %}
-{% block title %}نوبت‌های امروز | حسابداری آریو{% endblock %}
-{% block page_title %}<strong>نوبت‌های امروز — {{ today }}</strong>{% endblock %}
+{% block title %}سود قرارداد و ساختمان{% endblock %}
+{% block page_title %}<strong>گزارش سود هر قرارداد و ساختمان</strong>{% endblock %}
 {% block content %}
 <div class="card">
-    <h3>ثبت نوبت جدید</h3>
-    <form method="post" action="{{ url_for('appointment_add') }}" class="form-row" style="align-items:end;">
-        <div class="form-group">
-            <label>مشتری *</label>
-            <select name="party_id" class="form-control" required>
-                <option value="">— انتخاب —</option>
-                {% for c in customers %}
-                <option value="{{ c.id }}">{{ c.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="form-group">
-            <label>تاریخ</label>
-            <input type="text" name="appt_date" class="form-control" value="{{ today }}">
-        </div>
-        <div class="form-group">
-            <label>ساعت</label>
-            <input type="text" name="appt_time" class="form-control" placeholder="09:00">
-        </div>
-        <div class="form-group">
-            <label>نوع سرویس</label>
-            <input type="text" name="service_type" class="form-control" placeholder="سرویس معمولی">
-        </div>
-        <div class="form-group">
-            <label>مبلغ (ریال)</label>
-            <input type="number" name="amount" class="form-control" value="0">
-        </div>
-        <div class="form-group">
-            <label>توضیح</label>
-            <input type="text" name="description" class="form-control">
-        </div>
-        <div class="form-group">
-            <button type="submit" class="btn btn-primary">ثبت نوبت</button>
-        </div>
-    </form>
+<h2>به تفکیک قرارداد</h2>
+<table>
+<thead><tr><th>قرارداد</th><th>مشتری</th><th>ساختمان</th><th>مبلغ قرارداد</th><th>هزینه تعمیر</th><th>مانده تقریبی</th></tr></thead>
+<tbody>
+{% for r in by_contract %}
+{% set profit = (r.contract_amount or 0) - (r.repair_cost or 0) %}
+<tr>
+<td>{{ r.contract_no }}</td>
+<td>{{ r.customer_name or '—' }}</td>
+<td>{{ r.building_name or '—' }}</td>
+<td class="text-left">{{ "{:,.0f}".format(r.contract_amount or 0) }}</td>
+<td class="text-left">{{ "{:,.0f}".format(r.repair_cost or 0) }}</td>
+<td class="text-left" style="font-weight:bold;color:{% if profit>=0 %}#27ae60{% else %}#c0392b{% endif %};">{{ "{:,.0f}".format(profit) }}</td>
+</tr>
+{% else %}<tr><td colspan="6" style="text-align:center;">داده‌ای نیست</td></tr>{% endfor %}
+</tbody></table>
 </div>
-
 <div class="card">
-    <h2>لیست نوبت‌های امروز</h2>
-    <p style="color:#7f8c8d;margin-bottom:12px;">تیک بزنید وقتی سرویس انجام شد.</p>
-    <table>
-        <thead>
-            <tr>
-                <th>ساعت</th>
-                <th>مشتری</th>
-                <th>تلفن</th>
-                <th>نوع سرویس</th>
-                <th>مبلغ</th>
-                <th>وضعیت</th>
-                <th>سرویس انجام شد؟</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for a in appointments %}
-            <tr style="{% if a.is_done %}background:#e8f8f0;{% endif %}">
-                <td class="text-left">{{ a.appt_time or '—' }}</td>
-                <td><strong>{{ a.customer_name }}</strong></td>
-                <td class="text-left">{{ a.phone or '—' }}</td>
-                <td>{{ a.service_type or '—' }}</td>
-                <td class="text-left">{{ "{:,.0f}".format(a.amount or 0) }}</td>
-                <td>
-                    {% if a.is_done %}
-                    <span class="badge" style="background:#d5f5e3;color:#1e8449;">انجام شد</span>
-                    {% else %}
-                    <span class="badge" style="background:#fdebd0;color:#b9770e;">در انتظار</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <form method="post" action="{{ url_for('appointment_toggle', aid=a.id) }}" style="display:inline;">
-                        <button type="submit" class="btn btn-sm {% if a.is_done %}btn-secondary{% else %}btn-success{% endif %}">
-                            {% if a.is_done %}✓ انجام شده — لغو{% else %}☐ تیک بزن{% endif %}
-                        </button>
-                    </form>
-                </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="7" style="text-align:center;">نوبتی برای امروز ثبت نشده.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<h2>به تفکیک ساختمان</h2>
+<table>
+<thead><tr><th>ساختمان</th><th>جمع قرارداد</th><th>جمع تعمیرات</th><th>مانده</th></tr></thead>
+<tbody>
+{% for r in by_building %}
+{% set profit = (r.contract_sum or 0) - (r.repair_sum or 0) %}
+<tr>
+<td>{{ r.building_name }}</td>
+<td class="text-left">{{ "{:,.0f}".format(r.contract_sum or 0) }}</td>
+<td class="text-left">{{ "{:,.0f}".format(r.repair_sum or 0) }}</td>
+<td class="text-left" style="font-weight:bold;">{{ "{:,.0f}".format(profit) }}</td>
+</tr>
+{% else %}<tr><td colspan="4" style="text-align:center;">داده‌ای نیست</td></tr>{% endfor %}
+</tbody></table>
 </div>
 {% endblock %}

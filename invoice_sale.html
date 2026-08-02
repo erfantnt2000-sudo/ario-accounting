@@ -1,39 +1,47 @@
 {% extends "base.html" %}
-{% block title %}سود قرارداد و ساختمان{% endblock %}
-{% block page_title %}<strong>گزارش سود هر قرارداد و ساختمان</strong>{% endblock %}
+{% block title %}{% if account %}ویرایش{% else %}افزودن{% endif %} حساب | حسابداری آریو{% endblock %}
+{% block page_title %}<strong>{% if account %}ویرایش حساب{% else %}حساب جدید{% endif %}</strong>{% endblock %}
 {% block content %}
-<div class="card">
-<h2>به تفکیک قرارداد</h2>
-<table>
-<thead><tr><th>قرارداد</th><th>مشتری</th><th>ساختمان</th><th>مبلغ قرارداد</th><th>هزینه تعمیر</th><th>مانده تقریبی</th></tr></thead>
-<tbody>
-{% for r in by_contract %}
-{% set profit = (r.contract_amount or 0) - (r.repair_cost or 0) %}
-<tr>
-<td>{{ r.contract_no }}</td>
-<td>{{ r.customer_name or '—' }}</td>
-<td>{{ r.building_name or '—' }}</td>
-<td class="text-left">{{ "{:,.0f}".format(r.contract_amount or 0) }}</td>
-<td class="text-left">{{ "{:,.0f}".format(r.repair_cost or 0) }}</td>
-<td class="text-left" style="font-weight:bold;color:{% if profit>=0 %}#27ae60{% else %}#c0392b{% endif %};">{{ "{:,.0f}".format(profit) }}</td>
-</tr>
-{% else %}<tr><td colspan="6" style="text-align:center;">داده‌ای نیست</td></tr>{% endfor %}
-</tbody></table>
-</div>
-<div class="card">
-<h2>به تفکیک ساختمان</h2>
-<table>
-<thead><tr><th>ساختمان</th><th>جمع قرارداد</th><th>جمع تعمیرات</th><th>مانده</th></tr></thead>
-<tbody>
-{% for r in by_building %}
-{% set profit = (r.contract_sum or 0) - (r.repair_sum or 0) %}
-<tr>
-<td>{{ r.building_name }}</td>
-<td class="text-left">{{ "{:,.0f}".format(r.contract_sum or 0) }}</td>
-<td class="text-left">{{ "{:,.0f}".format(r.repair_sum or 0) }}</td>
-<td class="text-left" style="font-weight:bold;">{{ "{:,.0f}".format(profit) }}</td>
-</tr>
-{% else %}<tr><td colspan="4" style="text-align:center;">داده‌ای نیست</td></tr>{% endfor %}
-</tbody></table>
+<div class="card" style="max-width:600px;">
+    <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <label>کد حساب *</label>
+            <input type="text" name="code" class="form-control" required
+                   value="{{ account.code if account else '' }}"
+                   {% if account %}readonly{% endif %} placeholder="مثال: 11103">
+        </div>
+        <div class="form-group">
+            <label>نام حساب *</label>
+            <input type="text" name="name" class="form-control" required value="{{ account.name if account else '' }}">
+        </div>
+        <div class="form-group">
+            <label>حساب والد</label>
+            <select name="parent_code" class="form-control">
+                <option value="">— بدون والد —</option>
+                {% for p in parents %}
+                <option value="{{ p.code }}" {% if account and account.parent_code == p.code %}selected{% endif %}>
+                    {{ p.code }} — {{ p.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>نوع حساب</label>
+            <select name="account_type" class="form-control">
+                <option value="asset" {% if account and account.account_type=='asset' %}selected{% endif %}>دارایی</option>
+                <option value="liability" {% if account and account.account_type=='liability' %}selected{% endif %}>بدهی</option>
+                <option value="equity" {% if account and account.account_type=='equity' %}selected{% endif %}>حقوق صاحبان سهام</option>
+                <option value="revenue" {% if account and account.account_type=='revenue' %}selected{% endif %}>درآمد</option>
+                <option value="expense" {% if account and account.account_type=='expense' %}selected{% endif %}>هزینه</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>توضیحات</label>
+            <textarea name="description" class="form-control" rows="2">{{ account.description if account else '' }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">ذخیره</button>
+        <a href="{{ url_for('accounts') }}" class="btn btn-secondary">انصراف</a>
+    </form>
 </div>
 {% endblock %}

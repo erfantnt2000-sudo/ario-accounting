@@ -1,22 +1,109 @@
 {% extends "base.html" %}
-{% block title %}تاریخچه تعمیرات{% endblock %}
-{% block page_title %}<strong>تاریخچه تعمیرات و هزینه قطعات</strong>{% endblock %}
+{% block title %}ثبت کارفرما و قرارداد{% endblock %}
+{% block page_title %}<strong>ثبت یکجای کارفرما، ساختمان و قرارداد سرویس</strong>{% endblock %}
+{% block extra_css %}
+<style>
+#existingPartyBox { display:none; }
+#existingPartyBox.show { display:block; }
+#newPartyFields.hide { display:none; }
+</style>
+{% endblock %}
 {% block content %}
 <div class="card">
-<table>
-<thead><tr><th>تاریخ</th><th>آسانسور</th><th>سرویس‌کار</th><th>شرح</th><th>اجرت</th><th>قطعات</th><th>جمع</th></tr></thead>
-<tbody>
-{% for r in rows %}
-<tr>
-<td>{{ r.repair_date }}</td>
-<td>{{ r.elev_code }}</td>
-<td>{{ r.tech_name or '—' }}</td>
-<td>{{ r.description or '—' }}</td>
-<td class="text-left">{{ "{:,.0f}".format(r.labor_cost or 0) }}</td>
-<td class="text-left">{{ "{:,.0f}".format(r.parts_cost or 0) }}</td>
-<td class="text-left"><strong>{{ "{:,.0f}".format(r.total_cost or 0) }}</strong></td>
-</tr>
-{% else %}<tr><td colspan="7" style="text-align:center;">تعمیری ثبت نشده</td></tr>{% endfor %}
-</tbody></table>
+<p style="color:var(--muted);font-size:0.9rem;margin-bottom:16px;">
+همه اطلاعات لازم برای شروع قرارداد سرویس آسانسور را در یک فرم وارد کنید.
+اگر این کارفرما قبلاً ثبت شده (مثلاً می‌خواهید ساختمان دومش را اضافه کنید)، از گزینه «کارفرمای موجود» استفاده کنید تا یک پروفایل تکراری ساخته نشود.
+</p>
+<form method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<h3 style="color:var(--primary);margin:12px 0 8px;">۱) کارفرما</h3>
+
+<div class="form-group" style="max-width:340px;">
+  <label><input type="checkbox" id="useExisting" onclick="toggleExisting()"> این کارفرما قبلاً ثبت شده است</label>
 </div>
+<div id="existingPartyBox" class="form-group">
+  <label>انتخاب کارفرمای موجود</label>
+  <select name="existing_party_id" id="existingPartySelect" class="form-control">
+    <option value="">— انتخاب —</option>
+    {% for p in parties %}
+    <option value="{{ p.id }}">{{ p.name }}{% if p.phone %} ({{ p.phone }}){% endif %}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<div id="newPartyFields">
+<div class="form-row">
+  <div class="form-group"><label>نام و نام خانوادگی کارفرما *</label>
+    <input name="name" id="nameInput" class="form-control" required placeholder="مثال: علی محمدی"></div>
+  <div class="form-group"><label>تلفن</label>
+    <input name="phone" class="form-control" placeholder="09xxxxxxxxx"></div>
+</div>
+<div class="form-group"><label>آدرس</label>
+  <input name="address" class="form-control" placeholder="آدرس محل ساختمان"></div>
+</div>
+
+<h3 style="color:var(--primary);margin:18px 0 8px;">۲) ساختمان و آسانسور</h3>
+<div class="form-row">
+  <div class="form-group"><label>نام ساختمان *</label>
+    <input name="building_name" class="form-control" required placeholder="برج آسمان / مجتمع ..."></div>
+  <div class="form-group"><label>کد آسانسور</label>
+    <input name="elev_code" class="form-control" placeholder="خالی = خودکار"></div>
+</div>
+<div class="form-row">
+  <div class="form-group"><label>برند آسانسور</label>
+    <input name="elev_brand" class="form-control" placeholder="اوتیس، شیندلر، ..."></div>
+  <div class="form-group"><label>تعداد توقف</label>
+    <input type="number" name="elev_stops" class="form-control" value="0" min="0"></div>
+</div>
+
+<h3 style="color:var(--primary);margin:18px 0 8px;">۳) قرارداد سرویس</h3>
+<div class="form-row">
+  <div class="form-group"><label>شماره قرارداد</label>
+    <input name="contract_no" class="form-control" placeholder="خالی = خودکار و یکتا"></div>
+  <div class="form-group"><label>مبلغ قرارداد (ریال)</label>
+    <input type="number" name="amount" class="form-control" value="0" min="0"></div>
+</div>
+<div class="form-row">
+  <div class="form-group"><label>تاریخ شروع قرارداد *</label>
+    <input name="start_date" class="form-control" value="{{ today }}" required placeholder="1404/05/10"></div>
+  <div class="form-group"><label>تاریخ پایان قرارداد *</label>
+    <input name="end_date" class="form-control" required placeholder="1404/12/29"></div>
+</div>
+<div class="form-row">
+  <div class="form-group"><label>تعداد سرویس در ماه</label>
+    <input type="number" name="visit_per_month" class="form-control" value="1" min="1"></div>
+  <div class="form-group"><label>تاریخ اولین سرویس</label>
+    <input name="first_service" class="form-control" value="{{ today }}" placeholder="1404/05/10"></div>
+  <div class="form-group"><label>سرویس‌کار</label>
+    <select name="technician_id" class="form-control">
+      <option value="">— اختیاری —</option>
+      {% for t in techs %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+    </select>
+  </div>
+</div>
+<div class="form-group"><label>یادداشت</label>
+  <textarea name="notes" class="form-control" rows="2"></textarea></div>
+
+<button type="submit" class="btn btn-primary">ثبت کامل</button>
+<a href="{{ url_for('customers') }}" class="btn btn-secondary">انصراف</a>
+</form>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function toggleExisting() {
+    const chk = document.getElementById('useExisting');
+    const box = document.getElementById('existingPartyBox');
+    const newFields = document.getElementById('newPartyFields');
+    if (chk.checked) {
+        box.classList.add('show');
+        newFields.classList.add('hide');
+        document.getElementById('nameInput').removeAttribute('required');
+    } else {
+        box.classList.remove('show');
+        newFields.classList.remove('hide');
+        document.getElementById('nameInput').setAttribute('required', 'required');
+    }
+}
+</script>
 {% endblock %}

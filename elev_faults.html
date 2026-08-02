@@ -1,21 +1,41 @@
 {% extends "base.html" %}
-{% block title %}مجتمع جدید{% endblock %}
-{% block page_title %}<strong>ثبت مجتمع</strong>{% endblock %}
+{% block title %}غایبین ماه | حسابداری آریو{% endblock %}
+{% block page_title %}<strong>غایبین ماه — {{ month }}</strong>{% endblock %}
 {% block content %}
-<div class="card" style="max-width:600px;">
-<form method="post">
-<div class="form-row">
-<div class="form-group"><label>کد</label><input name="code" class="form-control"></div>
-<div class="form-group"><label>نام *</label><input name="name" class="form-control" required></div>
+<div class="card">
+    <form method="get" style="margin-bottom:16px;">
+        <label>ماه (مثال: 1404/04): </label>
+        <input type="text" name="month" class="form-control" style="width:150px;display:inline-block;" value="{{ month }}">
+        <button type="submit" class="btn btn-primary btn-sm">نمایش</button>
+    </form>
+    <h2>مشتریانی که نوبت داشتند ولی سرویس انجام نشده</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>تاریخ</th>
+                <th>ساعت</th>
+                <th>مشتری</th>
+                <th>تلفن</th>
+                <th>نوع سرویس</th>
+                <th>مبلغ</th>
+                <th>توضیح</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in appointments %}
+            <tr>
+                <td>{{ a.appt_date }}</td>
+                <td class="text-left">{{ a.appt_time or '—' }}</td>
+                <td><strong>{{ a.customer_name }}</strong></td>
+                <td class="text-left">{{ a.phone or '—' }}</td>
+                <td>{{ a.service_type or '—' }}</td>
+                <td class="text-left">{{ "{:,.0f}".format(a.amount or 0) }}</td>
+                <td>{{ a.description or '—' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" style="text-align:center;">غایبی در این ماه ثبت نشده.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
-<div class="form-group"><label>آدرس</label><input name="address" class="form-control"></div>
-<div class="form-row">
-<div class="form-group"><label>شهر</label><input name="city" class="form-control"></div>
-<div class="form-group"><label>نام مدیر</label><input name="manager_name" class="form-control"></div>
-<div class="form-group"><label>تلفن مدیر</label><input name="manager_phone" class="form-control"></div>
-</div>
-<div class="form-group"><label>یادداشت</label><textarea name="notes" class="form-control" rows="2"></textarea></div>
-<button class="btn btn-primary">ذخیره</button>
-<a href="{{ url_for('elev_complexes') }}" class="btn btn-secondary">انصراف</a>
-</form></div>
 {% endblock %}

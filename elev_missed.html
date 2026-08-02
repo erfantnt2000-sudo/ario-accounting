@@ -1,26 +1,31 @@
 {% extends "base.html" %}
-{% block title %}قرارداد سرویس{% endblock %}
-{% block page_title %}<strong>قراردادهای سرویس</strong>{% endblock %}
+{% block title %}پرونده آسانسور{% endblock %}
+{% block page_title %}<strong>ثبت پرونده آسانسور</strong>{% endblock %}
 {% block content %}
-<div class="card">
-<div style="display:flex;justify-content:space-between;margin-bottom:12px;"><h2 style="margin:0;">قراردادها</h2>
-<a href="{{ url_for('elev_contract_add') }}" class="btn btn-primary">+ قرارداد</a></div>
-<table>
-<thead><tr><th>شماره</th><th>مشتری</th><th>ساختمان</th><th>آسانسور</th><th>شروع</th><th>پایان</th><th>مبلغ</th><th>بازدید/ماه</th><th>وضعیت</th></tr></thead>
-<tbody>
-{% for r in rows %}
-<tr>
-<td>{{ r.contract_no }}</td>
-<td>{{ r.customer_name or '—' }}</td>
-<td>{{ r.building_name or '—' }}</td>
-<td>{{ r.elev_code or '—' }}</td>
-<td>{{ r.start_date }}</td>
-<td>{{ r.end_date }}</td>
-<td class="text-left">{{ "{:,.0f}".format(r.amount or 0) }}</td>
-<td>{{ r.visit_per_month }}</td>
-<td>{% if r.status=='active' %}<span class="badge" style="background:#d5f5e3;color:#1e8449;">فعال</span>{% else %}{{ r.status }}{% endif %}</td>
-</tr>
-{% else %}<tr><td colspan="9" style="text-align:center;">قراردادی نیست</td></tr>{% endfor %}
-</tbody></table>
+<div class="card" style="max-width:700px;">
+<form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="form-group"><label>ساختمان *</label>
+<select name="building_id" class="form-control" required>
+<option value="">— انتخاب —</option>
+{% for b in buildings %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+</select></div>
+<div class="form-row">
+<div class="form-group"><label>کد *</label><input name="code" class="form-control" required placeholder="EL-001"></div>
+<div class="form-group"><label>نام</label><input name="name" class="form-control"></div>
 </div>
+<div class="form-row">
+<div class="form-group"><label>برند</label><input name="brand" class="form-control"></div>
+<div class="form-group"><label>مدل</label><input name="model" class="form-control"></div>
+<div class="form-group"><label>ظرفیت</label><input name="capacity" class="form-control" placeholder="8 نفر"></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>تعداد توقف</label><input type="number" name="stops" class="form-control" value="0"></div>
+<div class="form-group"><label>نوع درایو</label><input name="drive_type" class="form-control"></div>
+<div class="form-group"><label>نوع درب</label><input name="door_type" class="form-control"></div>
+</div>
+<div class="form-group"><label>یادداشت</label><textarea name="notes" class="form-control" rows="2"></textarea></div>
+<button class="btn btn-primary">ذخیره</button>
+<a href="{{ url_for('elev_list') }}" class="btn btn-secondary">انصراف</a>
+</form></div>
 {% endblock %}

@@ -1,50 +1,111 @@
 {% extends "base.html" %}
-{% block title %}کارفرماها و قراردادها{% endblock %}
-{% block page_title %}<strong>لیست کارفرماها</strong>{% endblock %}
+{% block title %}گزارش سرویس{% endblock %}
+{% block page_title %}<strong>گزارش سرویس</strong>{% endblock %}
+{% block extra_css %}
+<style>
+    #sigPad { border:1px solid var(--border); border-radius:8px; width:100%; height:160px; touch-action:none; background:#fff; }
+    .sig-actions { display:flex; gap:8px; margin-top:6px; }
+    #photoPreview { max-width:160px; border-radius:8px; margin-top:8px; display:none; border:1px solid var(--border); }
+</style>
+{% endblock %}
 {% block content %}
 <div class="card">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-    <h2 style="margin:0;">کارفرما / ساختمان / قرارداد</h2>
-    <a href="{{ url_for('customer_register') }}" class="btn btn-primary">+ ثبت یکجای قرارداد جدید</a>
-  </div>
-  <div class="table-wrap">
-  <table>
-    <thead>
-      <tr>
-        <th>کارفرما</th>
-        <th>تلفن</th>
-        <th>ساختمان</th>
-        <th>شروع قرارداد</th>
-        <th>پایان قرارداد</th>
-        <th>آخرین سرویس</th>
-        <th>مبلغ قرارداد</th>
-        <th>پرداختی</th>
-        <th>مانده</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for c in customers %}
-      {% set bal = (c.total_contract or 0) - (c.total_paid or 0) %}
-      <tr>
-        <td><strong>{{ c.name }}</strong></td>
-        <td class="text-left">{{ c.phone or '—' }}</td>
-        <td>{{ c.building_name or '—' }}</td>
-        <td>{{ c.last_start or '—' }}</td>
-        <td>{{ c.last_end or '—' }}</td>
-        <td>{{ c.last_service or '—' }}</td>
-        <td class="text-left">{{ "{:,.0f}".format(c.total_contract or 0) }}</td>
-        <td class="text-left">{{ "{:,.0f}".format(c.total_paid or 0) }}</td>
-        <td class="text-left" style="font-weight:bold;color:{% if bal>0 %}#c0392b{% else %}#27ae60{% endif %};">
-          {{ "{:,.0f}".format(bal) }}
-        </td>
-        <td><a class="btn btn-sm btn-secondary" href="{{ url_for('customer_edit', cid=c.id) }}">ویرایش</a></td>
-      </tr>
-      {% else %}
-      <tr><td colspan="10" style="text-align:center;">هنوز کارفرمایی ثبت نشده. از دکمه «ثبت یکجای قرارداد جدید» شروع کنید.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>
+  <h2>{{ visit.building_name or '' }} — {{ visit.elev_code }}</h2>
+  <p style="color:var(--muted);font-size:0.9rem;">
+    {% if visit.customer_name %}کارفرما: {{ visit.customer_name }} · {% endif %}
+    {% if visit.customer_phone %}{{ visit.customer_phone }}{% endif %}
+    {% if visit.building_address %}<br>📍 {{ visit.building_address }}{% endif %}
+  </p>
 </div>
+<form method="post" class="card" id="visitForm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h3>چک‌لیست استاندارد سرویس</h3>
+  <p style="font-size:0.85rem;color:var(--muted);margin-bottom:12px;">موارد بررسی‌شده را تیک بزنید.</p>
+  {% for key, label in checklist %}
+  <label class="chk-row">
+    <input type="checkbox" name="chk_{{ key }}" value="1" checked>
+    <span>{{ label }}</span>
+  </label>
+  {% endfor %}
+
+  <div class="form-group" style="margin-top:16px;">
+    <label>گزارش کار / توضیحات</label>
+    <textarea name="report_text" class="form-control" rows="3" placeholder="شرح کارهای انجام‌شده..."></textarea>
+  </div>
+
+  <div class="form-group">
+    <label>عکس مستندات (اختیاری)</label>
+    <input type="file" accept="image/*" capture="environment" id="photoInput" class="form-control">
+    <img id="photoPreview" alt="پیش‌نمایش عکس">
+    <input type="hidden" name="photo_data" id="photoData">
+  </div>
+
+  <div class="form-group">
+    <label>امضای کارفرما / مدیر ساختمان *</label>
+    <input name="customer_sign" class="form-control" placeholder="نام امضاکننده" required>
+  </div>
+  <div class="form-group">
+    <label>امضای دیجیتال</label>
+    <canvas id="sigPad"></canvas>
+    <div class="sig-actions">
+        <button type="button" class="btn btn-sm btn-secondary" onclick="clearSig()">پاک کردن امضا</button>
+    </div>
+    <input type="hidden" name="signature_data" id="signatureData">
+  </div>
+
+  <button type="submit" class="btn btn-success" style="width:100%;min-height:48px;">✓ ثبت انجام سرویس</button>
+  <a href="{{ url_for('tech_home') }}" class="btn btn-secondary" style="width:100%;margin-top:8px;">انصراف</a>
+</form>
+{% endblock %}
+{% block extra_js %}
+<script>
+// --- امضای دیجیتال روی کنواس ---
+const canvas = document.getElementById('sigPad');
+const ctx = canvas.getContext('2d');
+function resizeCanvas() {
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = canvas.clientWidth * ratio;
+    canvas.height = canvas.clientHeight * ratio;
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#1e293b';
+}
+resizeCanvas();
+let drawing = false;
+function pos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+}
+function start(e) { drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }
+function move(e) { if (!drawing) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); }
+function end() { drawing = false; }
+canvas.addEventListener('mousedown', start);
+canvas.addEventListener('mousemove', move);
+window.addEventListener('mouseup', end);
+canvas.addEventListener('touchstart', start);
+canvas.addEventListener('touchmove', move);
+canvas.addEventListener('touchend', end);
+function clearSig() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+// --- عکس مستندات ---
+document.getElementById('photoInput').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (ev) {
+        document.getElementById('photoData').value = ev.target.result;
+        const img = document.getElementById('photoPreview');
+        img.src = ev.target.result;
+        img.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+});
+
+// --- قبل از ارسال فرم، امضا را به‌صورت تصویر ذخیره کن ---
+document.getElementById('visitForm').addEventListener('submit', function () {
+    document.getElementById('signatureData').value = canvas.toDataURL('image/png');
+});
+</script>
 {% endblock %}

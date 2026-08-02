@@ -1,27 +1,22 @@
 {% extends "base.html" %}
-{% block title %}سود و زیان | حسابداری آریو{% endblock %}
-{% block page_title %}<strong>گزارش سود و زیان</strong>{% endblock %}
+{% block title %}تاریخچه تعمیرات{% endblock %}
+{% block page_title %}<strong>تاریخچه تعمیرات و هزینه قطعات</strong>{% endblock %}
 {% block content %}
-<div class="card" style="max-width:500px;">
-    <h2>صورت سود و زیان (ساده)</h2>
-    <table>
-        <tr>
-            <td>جمع درآمدها (فروش و ...)</td>
-            <td class="text-left" style="color:#27ae60;font-weight:bold;">{{ "{:,.0f}".format(revenue) }}</td>
-        </tr>
-        <tr>
-            <td>جمع هزینه‌ها</td>
-            <td class="text-left" style="color:#c0392b;font-weight:bold;">{{ "{:,.0f}".format(expense) }}</td>
-        </tr>
-        <tr style="background:#eaf2f8;font-weight:bold;font-size:1.1rem;">
-            <td>{% if profit >= 0 %}سود خالص{% else %}زیان خالص{% endif %}</td>
-            <td class="text-left" style="color:{% if profit >= 0 %}#27ae60{% else %}#c0392b{% endif %};">
-                {{ "{:,.0f}".format(profit) }}
-            </td>
-        </tr>
-    </table>
-    <p style="margin-top:16px;color:#7f8c8d;font-size:0.85rem;">
-        این گزارش بر اساس مانده حساب‌های گروه ۴ (درآمد) و گروه ۵ (هزینه) محاسبه شده است.
-    </p>
+<div class="card">
+<table>
+<thead><tr><th>تاریخ</th><th>آسانسور</th><th>سرویس‌کار</th><th>شرح</th><th>اجرت</th><th>قطعات</th><th>جمع</th></tr></thead>
+<tbody>
+{% for r in rows %}
+<tr>
+<td>{{ r.repair_date }}</td>
+<td>{{ r.elev_code }}</td>
+<td>{{ r.tech_name or '—' }}</td>
+<td>{{ r.description or '—' }}</td>
+<td class="text-left">{{ "{:,.0f}".format(r.labor_cost or 0) }}</td>
+<td class="text-left">{{ "{:,.0f}".format(r.parts_cost or 0) }}</td>
+<td class="text-left"><strong>{{ "{:,.0f}".format(r.total_cost or 0) }}</strong></td>
+</tr>
+{% else %}<tr><td colspan="7" style="text-align:center;">تعمیری ثبت نشده</td></tr>{% endfor %}
+</tbody></table>
 </div>
 {% endblock %}

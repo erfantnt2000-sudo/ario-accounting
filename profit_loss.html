@@ -1,39 +1,11 @@
 {% extends "base.html" %}
-{% block title %}اشخاص | حسابداری آریو{% endblock %}
-{% block page_title %}<strong>اشخاص (مشتری / تأمین‌کننده)</strong>{% endblock %}
+{% block title %}ساختمان‌ها{% endblock %}
+{% block page_title %}<strong>ساختمان‌ها</strong>{% endblock %}
 {% block content %}
 <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h2 style="margin:0;">فهرست اشخاص</h2>
-        <a href="{{ url_for('party_add') }}" class="btn btn-primary">+ شخص جدید</a>
-    </div>
-    <table>
-        <thead>
-            <tr>
-                <th>کد</th>
-                <th>نام</th>
-                <th>نوع</th>
-                <th>تلفن</th>
-                <th>عملیات</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for p in parties %}
-            <tr>
-                <td>{{ p.code or '—' }}</td>
-                <td>{{ p.name }}</td>
-                <td>
-                    {% if p.party_type == 'customer' %}مشتری
-                    {% elif p.party_type == 'supplier' %}تأمین‌کننده
-                    {% else %}هر دو{% endif %}
-                </td>
-                <td class="text-left">{{ p.phone or '—' }}</td>
-                <td><a href="{{ url_for('party_edit', pid=p.id) }}" class="btn btn-sm btn-secondary">ویرایش</a></td>
-            </tr>
-            {% else %}
-            <tr><td colspan="5" style="text-align:center;">شخصی ثبت نشده.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div style="display:flex;justify-content:space-between;margin-bottom:12px;"><h2 style="margin:0;">فهرست ساختمان</h2>
+<a href="{{ url_for('elev_building_add') }}" class="btn btn-primary">+ ساختمان</a></div>
+<table><thead><tr><th>کد</th><th>نام</th><th>مجتمع</th><th>مشتری</th><th>طبقات</th><th>واحد</th></tr></thead>
+<tbody>{% for r in rows %}<tr><td>{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.complex_name or '—' }}</td><td>{{ r.customer_name or '—' }}</td><td>{{ r.floors }}</td><td>{{ r.units }}</td></tr>{% else %}<tr><td colspan="6" style="text-align:center;">خالی</td></tr>{% endfor %}</tbody></table>
 </div>
 {% endblock %}

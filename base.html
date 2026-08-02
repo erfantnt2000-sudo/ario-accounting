@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}ساختمان جدید{% endblock %}
+{% block page_title %}<strong>ثبت ساختمان</strong>{% endblock %}
+{% block content %}
+<div class="card" style="max-width:600px;">
+<form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="form-group"><label>مجتمع</label><select name="complex_id" class="form-control"><option value="">—</option>{% for c in complexes %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>
+<div class="form-row">
+<div class="form-group"><label>کد</label><input name="code" class="form-control"></div>
+<div class="form-group"><label>نام *</label><input name="name" class="form-control" required></div>
+</div>
+<div class="form-group"><label>مشتری</label><select name="party_id" class="form-control"><option value="">—</option>{% for p in parties %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+<div class="form-row">
+<div class="form-group"><label>طبقات</label><input type="number" name="floors" class="form-control" value="0"></div>
+<div class="form-group"><label>واحد</label><input type="number" name="units" class="form-control" value="0"></div>
+</div>
+<div class="form-group"><label>آدرس</label><input name="address" class="form-control"></div>
+<button class="btn btn-primary">ذخیره</button>
+<a href="{{ url_for('elev_buildings') }}" class="btn btn-secondary">انصراف</a>
+</form></div>
+{% endblock %}

@@ -176,15 +176,6 @@ def init_elevator_tables():
     """)
 
     c.execute("""
-        CREATE TABLE IF NOT EXISTS notifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT,
-            body TEXT,
-            target_role TEXT,
-            technician_id INTEGER,
-            is_read INTEGER DEFAULT 0,
-            created_at TEXT
-        );
         CREATE TABLE IF NOT EXISTS visit_checklist (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             visit_id INTEGER NOT NULL,
@@ -202,39 +193,17 @@ def init_elevator_tables():
             c.execute("UPDATE technicians SET user_id=? WHERE code='T01' AND (user_id IS NULL OR user_id=0)", (u[0] if not hasattr(u,'keys') else u['id'],))
     except Exception:
         pass
-    
-    # ستون‌های شبیه تی‌لیفت (اگر نبود اضافه شود)
-    extras = [
-        ("buildings", "lat", "TEXT"),
-        ("buildings", "lng", "TEXT"),
-        ("buildings", "map_link", "TEXT"),
-        ("buildings", "region", "TEXT"),
-        ("contracts", "insurance_end", "TEXT"),
-        ("contracts", "insurance_no", "TEXT"),
-        ("contracts", "check_due", "TEXT"),
-        ("contracts", "public_token", "TEXT"),
-        ("service_visits", "rating", "INTEGER"),
-        ("service_visits", "rating_note", "TEXT"),
-        ("faults", "source", "TEXT DEFAULT 'office'"),
-        ("service_visits", "gps_lat", "TEXT"),
-        ("service_visits", "gps_lng", "TEXT"),
-        ("contracts", "renew_sign", "TEXT"),
-        ("contracts", "renewed_at", "TEXT"),
-    ]
-    for table, col, typ in extras:
-        try:
-            c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
-        except Exception:
-            pass
 
-    # backfill public_token
-    try:
-        import secrets as _sec
-        rows = c.execute("SELECT id FROM contracts WHERE public_token IS NULL OR public_token=''").fetchall()
-        for r in rows:
-            c.execute("UPDATE contracts SET public_token=? WHERE id=?", (_sec.token_urlsafe(12), r[0]))
-    except Exception as e:
-        print("token backfill:", e)
+    # مهاجرت: ستون‌های امضای دیجیتال (کنواس) و عکس واقعی بازدید (base64) برای دیتابیس‌های قدیمی‌تر
+    for col_sql in [
+        "ALTER TABLE service_visits ADD COLUMN signature_data TEXT",
+        "ALTER TABLE service_visits ADD COLUMN photo_data TEXT",
+    ]:
+        try:
+            c.execute(col_sql)
+        except Exception:
+            pass  # ستون از قبل وجود دارد
+
     conn.commit()
     conn.close()
     print("Elevator tables ready.")
