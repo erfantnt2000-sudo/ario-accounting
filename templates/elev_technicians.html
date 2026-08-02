@@ -5,6 +5,7 @@
 <div class="card">
 <h3>ثبت سرویس‌کار</h3>
 <form method="post" action="{{ url_for('elev_tech_add') }}" class="form-row" style="align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <div class="form-group"><label>کد</label><input name="code" class="form-control"></div>
 <div class="form-group"><label>نام *</label><input name="name" class="form-control" required></div>
 <div class="form-group"><label>تلفن</label><input name="phone" class="form-control"></div>

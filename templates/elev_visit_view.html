@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}گزارش بازدید | حسابداری آریو{% endblock %}
+{% block page_title %}<strong>گزارش سرویس — {{ visit.elev_code }}</strong>{% endblock %}
+{% block extra_css %}
+<style>
+    .chk-item { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px dashed var(--border); font-size:.9rem; }
+    .chk-ok { color:#1e8449; font-weight:800; }
+    .chk-bad { color:#c0392b; font-weight:800; }
+    .sig-img, .photo-img { max-width:100%; max-height:220px; border:1px solid var(--border); border-radius:8px; margin-top:6px; background:#fff; }
+    .info-box { background:#f8fafc; border-radius:9px; padding:12px 16px; margin-bottom:16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:6px; font-size:.9rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="info-box">
+        <div>🏢 ساختمان: <b>{{ visit.building_name or '—' }}</b></div>
+        <div>👤 کارفرما: <b>{{ visit.customer_name or '—' }}</b></div>
+        <div>📞 تلفن: <b>{{ visit.customer_phone or '—' }}</b></div>
+        <div>🛗 آسانسور: <b>{{ visit.elev_code }} {{ visit.elev_name or '' }}</b></div>
+        <div>🧑‍🔧 سرویس‌کار: <b>{{ visit.tech_name or '—' }}</b></div>
+        <div>📅 تاریخ برنامه: <b>{{ visit.planned_date }}</b></div>
+        <div>✅ تاریخ انجام: <b>{{ visit.visit_date or '—' }}</b></div>
+        <div>وضعیت:
+            {% if visit.status == 'done' %}<span class="badge" style="background:#d5f5e3;color:#1e8449;">انجام شد</span>
+            {% else %}<span class="badge" style="background:#fdebd0;color:#b9770e;">در انتظار</span>{% endif %}
+        </div>
+    </div>
+
+    {% if visit.report_text %}
+    <h3>گزارش کار</h3>
+    <p style="background:#f8fafc;border-radius:8px;padding:10px 12px;">{{ visit.report_text }}</p>
+    {% endif %}
+
+    {% if checklist %}
+    <h3>چک‌لیست استاندارد سرویس</h3>
+    <div>
+        {% for item in checklist %}
+        <div class="chk-item">
+            {% if item.is_ok %}<span class="chk-ok">✓</span>{% else %}<span class="chk-bad">✗</span>{% endif %}
+            <span>{{ item.item_label }}</span>
+            {% if item.note %}<span style="color:var(--muted);">— {{ item.note }}</span>{% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="form-row" style="margin-top:18px;">
+        <div class="form-group">
+            <label>امضای کارفرما {% if visit.customer_sign %}({{ visit.customer_sign }}){% endif %}</label>
+            {% if visit.signature_data %}
+            <img class="sig-img" src="{{ visit.signature_data }}" alt="امضای دیجیتال">
+            {% else %}
+            <p style="color:var(--muted);">امضایی ثبت نشده.</p>
+            {% endif %}
+        </div>
+        <div class="form-group">
+            <label>عکس مستندات</label>
+            {% if visit.photo_data %}
+            <img class="photo-img" src="{{ visit.photo_data }}" alt="عکس بازدید">
+            {% else %}
+            <p style="color:var(--muted);">عکسی ثبت نشده.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <p style="margin-top:16px;">
+        <a href="{{ url_for('elev_visits') }}" class="btn btn-secondary">← بازگشت به برنامه سرویس</a>
+    </p>
+</div>
+{% endblock %}

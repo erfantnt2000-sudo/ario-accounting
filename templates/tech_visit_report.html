@@ -1,38 +1,13 @@
 {% extends "base.html" %}
 {% block title %}گزارش سرویس{% endblock %}
-{% block extra_js %}
-<script>
-if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition(function(pos) {
-    document.getElementById('gps_lat').value = pos.coords.latitude;
-    document.getElementById('gps_lng').value = pos.coords.longitude;
-    document.getElementById('gps_status').textContent = '📍 موقعیت ثبت شد';
-  }, function() {
-    document.getElementById('gps_status').textContent = 'موقعیت در دسترس نیست (اختیاری)';
-  }, {enableHighAccuracy:true, timeout:8000});
-} else {
-  document.getElementById('gps_status').textContent = 'مرورگر از GPS پشتیبانی نمی‌کند';
-}
-</script>
-{% endblock %}
-
 {% block page_title %}<strong>گزارش سرویس</strong>{% endblock %}
-{% block extra_js %}
-<script>
-if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition(function(pos) {
-    document.getElementById('gps_lat').value = pos.coords.latitude;
-    document.getElementById('gps_lng').value = pos.coords.longitude;
-    document.getElementById('gps_status').textContent = '📍 موقعیت ثبت شد';
-  }, function() {
-    document.getElementById('gps_status').textContent = 'موقعیت در دسترس نیست (اختیاری)';
-  }, {enableHighAccuracy:true, timeout:8000});
-} else {
-  document.getElementById('gps_status').textContent = 'مرورگر از GPS پشتیبانی نمی‌کند';
-}
-</script>
+{% block extra_css %}
+<style>
+    #sigPad { border:1px solid var(--border); border-radius:8px; width:100%; height:160px; touch-action:none; background:#fff; }
+    .sig-actions { display:flex; gap:8px; margin-top:6px; }
+    #photoPreview { max-width:160px; border-radius:8px; margin-top:8px; display:none; border:1px solid var(--border); }
+</style>
 {% endblock %}
-
 {% block content %}
 <div class="card">
   <h2>{{ visit.building_name or '' }} — {{ visit.elev_code }}</h2>
@@ -42,7 +17,8 @@ if (navigator.geolocation) {
     {% if visit.building_address %}<br>📍 {{ visit.building_address }}{% endif %}
   </p>
 </div>
-<form method="post" class="card">
+<form method="post" class="card" id="visitForm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <h3>چک‌لیست استاندارد سرویس</h3>
   <p style="font-size:0.85rem;color:var(--muted);margin-bottom:12px;">موارد بررسی‌شده را تیک بزنید.</p>
   {% for key, label in checklist %}
@@ -56,46 +32,80 @@ if (navigator.geolocation) {
     <label>گزارش کار / توضیحات</label>
     <textarea name="report_text" class="form-control" rows="3" placeholder="شرح کارهای انجام‌شده..."></textarea>
   </div>
+
   <div class="form-group">
-    <label>یادداشت عکس / مستندات</label>
-    <input name="photo_note" class="form-control" placeholder="مثلاً: عکس موتور و درب گرفته شد">
+    <label>عکس مستندات (اختیاری)</label>
+    <input type="file" accept="image/*" capture="environment" id="photoInput" class="form-control">
+    <img id="photoPreview" alt="پیش‌نمایش عکس">
+    <input type="hidden" name="photo_data" id="photoData">
   </div>
+
   <div class="form-group">
-    <label>امضای کارفرما / مدیر ساختمان</label>
+    <label>امضای کارفرما / مدیر ساختمان *</label>
     <input name="customer_sign" class="form-control" placeholder="نام امضاکننده" required>
   </div>
   <div class="form-group">
-    <label>امتیاز اولیه مشتری (اختیاری)</label>
-    <select name="rating" class="form-control">
-      <option value="">—</option>
-      <option value="5">۵</option><option value="4">۴</option><option value="3">۳</option>
-      <option value="2">۲</option><option value="1">۱</option>
-    </select>
+    <label>امضای دیجیتال</label>
+    <canvas id="sigPad"></canvas>
+    <div class="sig-actions">
+        <button type="button" class="btn btn-sm btn-secondary" onclick="clearSig()">پاک کردن امضا</button>
+    </div>
+    <input type="hidden" name="signature_data" id="signatureData">
   </div>
-  <div class="form-group">
-    <label>نظر مشتری</label>
-    <input name="rating_note" class="form-control" placeholder="اختیاری">
-  </div>
-  <input type="hidden" name="gps_lat" id="gps_lat">
-  <input type="hidden" name="gps_lng" id="gps_lng">
-  <p id="gps_status" style="font-size:0.85rem;color:var(--muted);">📍 در حال دریافت موقعیت...</p>
+
   <button type="submit" class="btn btn-success" style="width:100%;min-height:48px;">✓ ثبت انجام سرویس</button>
   <a href="{{ url_for('tech_home') }}" class="btn btn-secondary" style="width:100%;margin-top:8px;">انصراف</a>
 </form>
 {% endblock %}
 {% block extra_js %}
 <script>
-if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition(function(pos) {
-    document.getElementById('gps_lat').value = pos.coords.latitude;
-    document.getElementById('gps_lng').value = pos.coords.longitude;
-    document.getElementById('gps_status').textContent = '📍 موقعیت ثبت شد';
-  }, function() {
-    document.getElementById('gps_status').textContent = 'موقعیت در دسترس نیست (اختیاری)';
-  }, {enableHighAccuracy:true, timeout:8000});
-} else {
-  document.getElementById('gps_status').textContent = 'مرورگر از GPS پشتیبانی نمی‌کند';
+// --- امضای دیجیتال روی کنواس ---
+const canvas = document.getElementById('sigPad');
+const ctx = canvas.getContext('2d');
+function resizeCanvas() {
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = canvas.clientWidth * ratio;
+    canvas.height = canvas.clientHeight * ratio;
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#1e293b';
 }
+resizeCanvas();
+let drawing = false;
+function pos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+}
+function start(e) { drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }
+function move(e) { if (!drawing) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); }
+function end() { drawing = false; }
+canvas.addEventListener('mousedown', start);
+canvas.addEventListener('mousemove', move);
+window.addEventListener('mouseup', end);
+canvas.addEventListener('touchstart', start);
+canvas.addEventListener('touchmove', move);
+canvas.addEventListener('touchend', end);
+function clearSig() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+// --- عکس مستندات ---
+document.getElementById('photoInput').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (ev) {
+        document.getElementById('photoData').value = ev.target.result;
+        const img = document.getElementById('photoPreview');
+        img.src = ev.target.result;
+        img.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+});
+
+// --- قبل از ارسال فرم، امضا را به‌صورت تصویر ذخیره کن ---
+document.getElementById('visitForm').addEventListener('submit', function () {
+    document.getElementById('signatureData').value = canvas.toDataURL('image/png');
+});
 </script>
 {% endblock %}
-

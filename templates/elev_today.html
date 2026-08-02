@@ -35,6 +35,7 @@
 <div class="card">
     <h3>افزودن نوبت سرویس برای این تاریخ</h3>
     <form method="post" action="{{ url_for('elev_visit_add') }}" class="form-row mobile-stack-form" style="align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="next" value="{{ url_for('elev_today', date=date_q, q=q) }}">
         <input type="hidden" name="planned_date" value="{{ date_q }}">
         <div class="form-group">
@@ -107,6 +108,7 @@
                 </td>
                 <td>
                     <form method="post" action="{{ url_for('elev_visit_quick_done', vid=v.id) }}" style="display:inline;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="next" value="{{ url_for('elev_today', date=date_q, q=q) }}">
                         <button type="submit" class="btn btn-sm {% if v.status=='done' %}btn-secondary{% else %}btn-success{% endif %}">
                             {% if v.status == 'done' %}✓ انجام شده — لغو{% else %}☐ تیک بزن{% endif %}

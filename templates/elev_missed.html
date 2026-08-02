@@ -37,10 +37,12 @@
                 <td>
                     <div class="mobile-stack-form" style="display:flex;gap:6px;flex-wrap:wrap;">
                         <form method="post" action="{{ url_for('elev_visit_quick_done', vid=v.id) }}" style="display:inline;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="next" value="{{ url_for('elev_missed') }}">
                             <button type="submit" class="btn btn-sm btn-success">✓ انجام شد</button>
                         </form>
                         <form method="post" action="{{ url_for('elev_visit_reschedule', vid=v.id) }}" style="display:flex;gap:4px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="text" name="new_date" class="form-control" style="width:110px;" value="{{ today }}" placeholder="تاریخ جدید">
                             <button type="submit" class="btn btn-sm btn-primary">موکول کن</button>
                         </form>

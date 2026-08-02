@@ -4,6 +4,7 @@
 {% block content %}
 <div class="card" style="max-width:600px;">
 <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <div class="form-group"><label>مجتمع</label><select name="complex_id" class="form-control"><option value="">—</option>{% for c in complexes %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>
 <div class="form-row">
 <div class="form-group"><label>کد</label><input name="code" class="form-control"></div>
@@ -17,7 +18,5 @@
 <div class="form-group"><label>آدرس</label><input name="address" class="form-control"></div>
 <button class="btn btn-primary">ذخیره</button>
 <a href="{{ url_for('elev_buildings') }}" class="btn btn-secondary">انصراف</a>
-<div class="form-group"><label>لینک نقشه / مسیریابی</label>
-<input name="map_link" class="form-control" placeholder="https://maps.google.com/..." value="{{ building.map_link if building else '' }}"></div>
 </form></div>
 {% endblock %}

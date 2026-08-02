@@ -50,6 +50,7 @@
     </div>
 
     <form method="post" id="invForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-row" style="margin-top:10px;">
             <div class="form-group">
                 <label>مشتری *</label>

@@ -1,411 +1,536 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#6b21a8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<title>{% block title %}آریو سرویس{% endblock %}</title>
-<style>
-:root {
-  --purple: #7c3aed;
-  --purple-dark: #5b21b6;
-  --purple-deep: #4c1d95;
-  --purple-soft: #ede9fe;
-  --purple-card: #6d28d9;
-  --accent: #a855f7;
-  --success: #16a34a;
-  --danger: #dc2626;
-  --warning: #ea580c;
-  --bg: #f4f5f7;
-  --card: #ffffff;
-  --text: #1e1b4b;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --sidebar-w: 72px;
-  --sidebar-expanded: 200px;
-  --topbar-h: 52px;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: Tahoma, 'Segoe UI', system-ui, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  line-height: 1.6;
-  min-height: 100vh;
-}
-a { color: var(--purple); text-decoration: none; }
-a:hover { color: var(--purple-dark); }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>{% block title %}آریو — سرویس آسانسور{% endblock %}</title>
+    <style>
+        :root {
+            --primary: #0f4c75;
+            --primary-dark: #0a2f4a;
+            --primary-light: #1b6ca8;
+            --accent: #3282b8;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --bg: #f0f4f8;
+            --card: #ffffff;
+            --text: #1a2332;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 20px rgba(15, 76, 117, 0.08);
+            --radius: 12px;
+            --sidebar-w: 260px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Tahoma', 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.65;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+        a { color: var(--accent); text-decoration: none; transition: color .15s; }
+        a:hover { color: var(--primary); }
 
-/* Right icon sidebar like screenshots */
-.layout { display: flex; min-height: 100vh; flex-direction: row-reverse; }
-.sidebar {
-  width: var(--sidebar-w);
-  background: #fff;
-  border-left: 1px solid var(--border);
-  position: fixed;
-  top: 0; right: 0; bottom: 0;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 12px 0;
-  overflow-y: auto;
-  box-shadow: -2px 0 12px rgba(91,33,182,.06);
-}
-.sidebar .brand {
-  width: 44px; height: 44px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #7c3aed, #4c1d95);
-  color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 1.1rem;
-  margin-bottom: 16px;
-}
-.sidebar nav { width: 100%; flex: 1; }
-.sidebar nav a {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 12px 4px;
-  color: #6b7280;
-  font-size: 0.65rem;
-  border-right: 3px solid transparent;
-  transition: .15s;
-  text-align: center;
-}
-.sidebar nav a .ico { font-size: 1.25rem; line-height: 1; }
-.sidebar nav a:hover, .sidebar nav a.active {
-  color: var(--purple);
-  background: var(--purple-soft);
-  border-right-color: var(--purple);
-}
-.sidebar .user-mini {
-  margin-top: auto;
-  padding: 10px;
-  font-size: 0.65rem;
-  color: var(--muted);
-  text-align: center;
-}
-.sidebar .user-mini a { color: var(--danger); font-size: 0.7rem; }
+        /* Layout */
+        .layout { display: flex; min-height: 100vh; position: relative; }
+        .sidebar {
+            width: var(--sidebar-w);
+            background: linear-gradient(175deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: #fff;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 4px 0 24px rgba(0,0,0,0.12);
+            position: fixed;
+            top: 0; right: 0; bottom: 0;
+            z-index: 1000;
+            overflow-y: auto;
+            transition: transform .3s cubic-bezier(.4,0,.2,1);
+        }
+        .sidebar .brand {
+            padding: 22px 18px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border-bottom: 1px solid rgba(255,255,255,0.12);
+            text-align: center;
+            letter-spacing: -0.02em;
+        }
+        .sidebar .brand small {
+            display: block;
+            font-size: 0.72rem;
+            opacity: 0.75;
+            font-weight: 400;
+            margin-top: 6px;
+        }
+        .sidebar nav { padding: 12px 0 80px; flex: 1; }
+        .sidebar nav a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 18px;
+            color: rgba(255,255,255,0.88);
+            border-right: 3px solid transparent;
+            font-size: 0.9rem;
+            transition: all .18s;
+        }
+        .sidebar nav a:hover, .sidebar nav a.active {
+            background: rgba(255,255,255,0.12);
+            border-right-color: #fff;
+            color: #fff;
+            text-decoration: none;
+        }
+        
+        .nav-group { margin-bottom: 8px; }
+        .nav-group-title {
+            padding: 10px 18px 4px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            opacity: 0.55;
+            font-weight: 700;
+        }
+        body.sidebar-open { overflow: hidden; }
 
-.main {
-  flex: 1;
-  margin-right: var(--sidebar-w);
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-.topbar {
-  height: var(--topbar-h);
-  background: #fff;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  gap: 8px;
-  position: sticky;
-  top: 0;
-  z-index: 50;
-}
-.topbar .menu-btn {
-  display: none;
-  background: none;
-  border: none;
-  font-size: 1.3rem;
-  cursor: pointer;
-  color: var(--purple);
-}
-.topbar .page-title { font-weight: 700; font-size: 0.95rem; color: var(--text); flex: 1; }
-.top-tabs {
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  flex: 1;
-}
-.top-tabs span {
-  background: var(--purple-soft);
-  color: var(--purple-dark);
-  padding: 4px 10px;
-  border-radius: 8px 8px 0 0;
-  font-size: 0.72rem;
-  white-space: nowrap;
-}
-.content { padding: 16px 18px 40px; flex: 1; }
+        .sidebar .user-info {
+            padding: 14px 18px;
+            font-size: 0.82rem;
+            border-top: 1px solid rgba(255,255,255,0.12);
+            background: rgba(0,0,0,0.15);
+            margin-top: auto;
+        }
 
-/* Cards */
-.card {
-  background: var(--card);
-  border-radius: 14px;
-  padding: 16px;
-  margin-bottom: 14px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.04);
-  border: 1px solid var(--border);
-}
-.card h2, .card h3 { font-size: 0.95rem; margin-bottom: 12px; color: var(--text); }
+        .main {
+            flex: 1;
+            margin-right: var(--sidebar-w);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 100vh;
+        }
+        .topbar {
+            background: var(--card);
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .topbar .menu-btn {
+            display: none;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            width: 42px; height: 42px;
+            border-radius: 10px;
+            font-size: 1.3rem;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        .content { padding: 20px; flex: 1; max-width: 1400px; width: 100%; margin: 0 auto; }
 
-/* Purple KPI cards like screenshot */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 14px;
-}
-@media(min-width:900px){
-  .kpi-grid { grid-template-columns: repeat(4, 1fr); }
-}
-.kpi {
-  background: linear-gradient(145deg, #7c3aed 0%, #5b21b6 100%);
-  color: #fff;
-  border-radius: 14px;
-  padding: 18px 14px;
-  min-height: 100px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-shadow: 0 8px 20px rgba(91,33,182,.25);
-  position: relative;
-  overflow: hidden;
-}
-.kpi:nth-child(2) { background: linear-gradient(145deg, #8b5cf6, #6d28d9); }
-.kpi:nth-child(3) { background: linear-gradient(145deg, #7e22ce, #581c87); }
-.kpi:nth-child(4) { background: linear-gradient(145deg, #a855f7, #7c3aed); }
-.kpi .kpi-ico { font-size: 1.4rem; opacity: .9; }
-.kpi .kpi-label { font-size: 0.82rem; margin-top: 8px; font-weight: 600; }
-.kpi .kpi-num { font-size: 1.5rem; font-weight: 800; }
+        /* Overlay for mobile */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+        }
+        .sidebar-overlay.show { display: block; }
 
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 14px; }
-.stat-box {
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px;
-  text-align: center;
-}
-.stat-box .num { font-size: 1.4rem; font-weight: 800; color: var(--purple); }
-.stat-box .label { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+        /* Cards */
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            margin-bottom: 18px;
+            border: 1px solid rgba(226,232,240,0.8);
+        }
+        .card h2, .card h3 { margin-bottom: 14px; color: var(--primary); font-weight: 700; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 18px 14px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            border-top: 3px solid var(--accent);
+            transition: transform .2s, box-shadow .2s;
+        }
+        .stat-box:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(15,76,117,0.12); }
+        .stat-box .num { font-size: 1.55rem; font-weight: 800; color: var(--primary); }
+        .stat-box .label { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
 
-/* Tables */
-.table-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-th, td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: right; }
-th { background: #faf5ff; color: var(--purple-dark); font-weight: 700; font-size: 0.78rem; }
-tr:hover td { background: #faf5ff; }
-.text-left { text-align: left; direction: ltr; }
+        /* Tables */
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 480px; }
+        th, td { padding: 11px 12px; text-align: right; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        th {
+            background: linear-gradient(180deg, #e8f1f8 0%, #dceaf4 100%);
+            color: var(--primary);
+            font-weight: 700;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+        }
+        tr:hover { background: #f8fafc; }
+        .text-left { text-align: left; direction: ltr; }
 
-/* Forms */
-.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-.form-group { margin-bottom: 12px; }
-.form-group label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
-.form-control, input, select, textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font-family: inherit;
-  font-size: 0.9rem;
-  background: #fff;
-}
-.form-control:focus, input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: var(--purple);
-  box-shadow: 0 0 0 3px rgba(124,58,237,.15);
-}
+        /* Forms */
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.88rem; color: #334155; }
+        .form-control {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 9px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            background: #fff;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(50,130,184,0.18);
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
 
-/* Buttons */
-.btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 10px 16px;
-  border-radius: 10px;
-  border: none;
-  font-family: inherit;
-  font-size: 0.88rem;
-  cursor: pointer;
-  font-weight: 600;
-  transition: .15s;
-}
-.btn-primary { background: var(--purple); color: #fff; }
-.btn-primary:hover { background: var(--purple-dark); }
-.btn-secondary { background: #f3f4f6; color: var(--text); }
-.btn-success { background: var(--success); color: #fff; }
-.btn-danger { background: var(--danger); color: #fff; }
-.btn-sm { padding: 6px 10px; font-size: 0.78rem; }
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 9px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: transform .12s, box-shadow .12s, background .15s;
+            white-space: nowrap;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(50,130,184,0.35); }
+        .btn-primary:hover { background: var(--primary-light); }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-success:hover { background: #27ae60; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-secondary { background: #94a3b8; color: #fff; }
+        .btn-secondary:hover { background: #64748b; }
+        .btn-sm { padding: 6px 12px; font-size: 0.8rem; border-radius: 7px; }
 
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 20px;
-  font-size: 0.72rem;
-  background: var(--purple-soft);
-  color: var(--purple-dark);
-}
-.alert, .alert-success {
-  background: #f5f3ff;
-  color: var(--purple-dark);
-  border: 1px solid #ddd6fe;
-  border-radius: 10px;
-  padding: 10px 14px;
-  margin-bottom: 12px;
-  font-size: 0.88rem;
-}
-.alert-danger { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
-.alert-banner {
-  background: linear-gradient(90deg, #ede9fe, #faf5ff);
-  border: 1px solid #c4b5fd;
-  border-radius: 10px;
-  padding: 12px 14px;
-  margin-bottom: 14px;
-  color: var(--purple-deep);
-  font-size: 0.9rem;
-}
-.tech-job {
-  background: #faf5ff;
-  border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 10px;
-  border: 1px solid #ede9fe;
-}
-.tech-job-title { font-weight: 700; color: var(--purple-dark); }
-.tech-job-meta { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
-.chk-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 8px; border-bottom: 1px solid var(--border); cursor: pointer;
-}
-.chk-row input { width: 18px; height: 18px; accent-color: var(--purple); }
+        /* Alerts */
+        .alert {
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 14px;
+            font-size: 0.9rem;
+        }
+        .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .alert-danger { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .alert-info { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
 
-/* Wizard steps like screenshot */
-.wizard {
-  display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;
-  margin-bottom: 20px; padding: 12px 0;
-}
-.wizard .step {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  min-width: 72px;
-}
-.wizard .step .circle {
-  width: 48px; height: 48px; border-radius: 50%;
-  background: #f3f4f6; color: #9ca3af;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.1rem; border: 2px solid #e5e7eb;
-}
-.wizard .step.active .circle {
-  background: #fef3c7; border-color: #f59e0b; color: #b45309;
-}
-.wizard .step.done .circle {
-  background: var(--purple-soft); border-color: var(--purple); color: var(--purple);
-}
-.wizard .step span { font-size: 0.7rem; color: var(--muted); text-align: center; }
+        
+        .tech-job {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+            border: 1px solid var(--border);
+        }
+        .tech-job-title { font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+        .tech-job-meta { font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+        .chk-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.92rem;
+            cursor: pointer;
+        }
+        .chk-row input { width: 20px; height: 20px; accent-color: var(--success); }
+        .alert-banner {
+            background: linear-gradient(90deg, #fef3c7, #fff7ed);
+            border: 1px solid #f59e0b;
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            color: #92400e;
+            font-size: 0.9rem;
+        }
 
-.footer-note { text-align: center; font-size: 0.7rem; color: #9ca3af; padding: 16px; }
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: #e0f2fe;
+            color: var(--primary);
+        }
 
-.sidebar-overlay {
-  display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,.35); z-index: 999;
-}
+        .footer-note {
+            text-align: center;
+            padding: 14px;
+            font-size: 0.78rem;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+            background: var(--card);
+        }
 
-@media (max-width: 768px) {
-  .sidebar {
-    transform: translateX(100%);
-    width: 200px;
-    align-items: stretch;
-  }
-  .sidebar.open { transform: translateX(0); }
-  .sidebar nav a {
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: 10px;
-    padding: 12px 16px;
-    font-size: 0.85rem;
-  }
-  .main { margin-right: 0; }
-  .topbar .menu-btn { display: block; }
-  .sidebar-overlay.open { display: block; }
-  .kpi-grid { grid-template-columns: 1fr 1fr; }
-}
+        /* ========== Tablet & Mobile ========== */
+        @media (max-width: 900px) {
+            .mobile-stack-form {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 8px !important;
+                width: 100%;
+            }
+            .mobile-stack-form .form-control,
+            .mobile-stack-form select,
+            .mobile-stack-form input,
+            .mobile-stack-form .btn {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
 
-@media print {
-  .sidebar, .topbar, .menu-btn, .alert, .no-print, .footer-note { display: none !important; }
-  .main { margin: 0 !important; }
-  .content { padding: 0 !important; }
-}
-{% block extra_css %}{% endblock %}
-</style>
+            .sidebar {
+                transform: translateX(110%) !important;
+                width: min(300px, 88vw);
+                -webkit-transform: translateX(110%);
+            }
+            .sidebar.open {
+                transform: translateX(0) !important;
+                -webkit-transform: translateX(0) !important;
+            }
+            .main { margin-right: 0 !important; width: 100%; }
+            .topbar {
+                padding: 10px 12px;
+                position: sticky;
+                top: 0;
+            }
+            .topbar .menu-btn { display: inline-flex !important; }
+            .content { padding: 12px 10px 24px; }
+            .card {
+                padding: 14px 12px;
+                border-radius: 10px;
+                margin-bottom: 12px;
+            }
+            .card h2, .card h3 { font-size: 1.05rem; }
+            .stats {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 8px;
+            }
+            .stat-box { padding: 14px 8px; }
+            .stat-box .num { font-size: 1.25rem; }
+            .stat-box .label { font-size: 0.75rem; }
+            .form-row {
+                grid-template-columns: 1fr !important;
+                gap: 8px;
+            }
+            .form-control {
+                font-size: 16px !important; /* prevent iOS zoom */
+                padding: 12px 12px;
+                min-height: 44px;
+            }
+            .btn {
+                min-height: 44px;
+                padding: 12px 14px;
+                width: auto;
+            }
+            .btn-sm { min-height: 36px; padding: 8px 10px; }
+            /* forms stacked: make action rows full width */
+            form.form-row .btn,
+            .form-row > .form-group .btn {
+                width: 100%;
+            }
+            table { font-size: 0.8rem; min-width: 520px; }
+            th, td { padding: 10px 8px; }
+            .table-wrap {
+                margin: 0 -12px;
+                padding: 0 4px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .sidebar nav a {
+                padding: 14px 18px;
+                font-size: 0.95rem;
+                min-height: 48px;
+            }
+            .footer-note { font-size: 0.7rem; padding: 10px; }
+        }
+        @media (max-width: 480px) {
+            .quick-actions { flex-direction: column !important; }
+            .quick-actions .btn { width: 100% !important; display: block !important; text-align: center; }
+
+            .stats { grid-template-columns: 1fr 1fr !important; }
+            .topbar div[style*="font-size"] { font-size: 0.75rem !important; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .card { padding: 12px 10px; }
+            /* full-width primary actions on tiny screens */
+            .card > a.btn, .card > p > a.btn { display: block; width: 100%; margin-bottom: 8px; text-align: center; }
+        }
+        @media (min-width: 901px) {
+            .sidebar-overlay { display: none !important; }
+            .topbar .menu-btn { display: none !important; }
+        }
+        @media print {
+            .sidebar, .topbar .menu-btn, .footer-note, .sidebar-overlay { display: none !important; }
+            .main { margin: 0 !important; }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
-<div class="sidebar-overlay" id="overlay" onclick="closeSidebar()"></div>
-<div class="layout">
-  <aside class="sidebar" id="sidebar">
-    <div class="brand">آ</div>
-    <nav>
-      {% if session.get('role') == 'technician' %}
-        <a href="{{ url_for('tech_home') }}" class="{% if request.endpoint and request.endpoint.startswith('tech_') %}active{% endif %}">
-          <span class="ico">📱</span><span>کارها</span>
-        </a>
-        <a href="{{ url_for('elev_faults') }}"><span class="ico">⚠️</span><span>خرابی</span></a>
-        <a href="{{ url_for('logout') }}"><span class="ico">🚪</span><span>خروج</span></a>
-      {% else %}
-        <a href="{{ url_for('elev_dashboard') }}" class="{% if request.endpoint == 'elev_dashboard' %}active{% endif %}">
-          <span class="ico">📊</span><span>داشبورد</span>
-        </a>
-        <a href="{{ url_for('customers') }}" class="{% if request.endpoint and 'customer' in request.endpoint %}active{% endif %}">
-          <span class="ico">👥</span><span>مشتریان</span>
-        </a>
-        <a href="{{ url_for('elev_contracts') }}" class="{% if request.endpoint and 'contract' in request.endpoint %}active{% endif %}">
-          <span class="ico">📄</span><span>قرارداد</span>
-        </a>
-        <a href="{{ url_for('elev_today') }}" class="{% if request.endpoint == 'elev_today' %}active{% endif %}">
-          <span class="ico">📅</span><span>سرویس</span>
-        </a>
-        <a href="{{ url_for('elev_faults') }}" class="{% if request.endpoint and 'fault' in request.endpoint %}active{% endif %}">
-          <span class="ico">🔧</span><span>خرابی</span>
-        </a>
-        <a href="{{ url_for('elev_list') }}"><span class="ico">🛗</span><span>آسانسور</span></a>
-        <a href="{{ url_for('payments_list') }}"><span class="ico">💰</span><span>مالی</span></a>
-        <a href="{{ url_for('invoice_sale') }}"><span class="ico">🧾</span><span>فاکتور</span></a>
-        <a href="{{ url_for('customer_register') }}"><span class="ico">➕</span><span>جدید</span></a>
-        <a href="{{ url_for('logout') }}"><span class="ico">🚪</span><span>خروج</span></a>
-      {% endif %}
-    </nav>
-    <div class="user-mini">
-      {% if session.get('full_name') %}{{ session.full_name }}{% endif %}
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="brand">
+                حسابداری آریو
+                <small>Elevator Service CRM</small>
+            </div>
+            <nav>
+                {% if session.get('role') == 'technician' %}
+                <div class="nav-group">
+                    <div class="nav-group-title">سرویس‌کار</div>
+                    <a href="{{ url_for('tech_home') }}" class="{% if request.endpoint and request.endpoint.startswith('tech_') %}active{% endif %}">📱 <span>کارهای امروز</span></a>
+                    <a href="{{ url_for('elev_faults') }}">⚠️ <span>خرابی‌ها</span></a>
+                    <a href="{{ url_for('logout') }}">🚪 <span>خروج</span></a>
+                </div>
+                {% else %}
+                <div class="nav-group">
+                    <div class="nav-group-title">عملیات روزانه</div>
+                    <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">📊 <span>داشبورد</span></a>
+                    <a href="{{ url_for('elev_today') }}" class="{% if request.endpoint == 'elev_today' %}active{% endif %}">📅 <span>سرویس امروز</span></a>
+                    <a href="{{ url_for('elev_missed') }}" class="{% if request.endpoint == 'elev_missed' %}active{% endif %}">🚫 <span>عقب‌افتاده‌ها</span></a>
+                    <a href="{{ url_for('elev_faults') }}" class="{% if request.endpoint and 'fault' in request.endpoint %}active{% endif %}">⚠️ <span>خرابی و اعزام</span></a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-title">قرارداد و مشتری</div>
+                    <a href="{{ url_for('customers') }}" class="{% if request.endpoint and 'customer' in request.endpoint %}active{% endif %}">👥 <span>کارفرماها</span></a>
+                    <a href="{{ url_for('customer_register') }}" class="{% if request.endpoint == 'customer_register' %}active{% endif %}">➕ <span>ثبت قرارداد جدید</span></a>
+                    <a href="{{ url_for('payments_list') }}" class="{% if request.endpoint and 'payment' in request.endpoint %}active{% endif %}">💰 <span>پرداخت و بدهی</span></a>
+                    <a href="{{ url_for('elev_contracts') }}" class="{% if request.endpoint and 'contract' in request.endpoint %}active{% endif %}">📄 <span>لیست قراردادها</span></a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-title">فنی</div>
+                    <a href="{{ url_for('elev_dashboard') }}" class="{% if request.endpoint == 'elev_dashboard' %}active{% endif %}">🛗 <span>داشبورد آسانسور</span></a>
+                    <a href="{{ url_for('elev_list') }}">📁 <span>پرونده آسانسور</span></a>
+                    <a href="{{ url_for('elev_buildings') }}">🏢 <span>ساختمان‌ها</span></a>
+                    <a href="{{ url_for('elev_technicians') }}">👷 <span>سرویس‌کاران</span></a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-title">مالی</div>
+                    <a href="{{ url_for('invoice_sale') }}">🧾 <span>صدور فاکتور</span></a>
+                    <a href="{{ url_for('invoices') }}">📋 <span>لیست فاکتورها</span></a>
+                    <a href="{{ url_for('vouchers') }}">📝 <span>اسناد</span></a>
+                    <a href="{{ url_for('products') }}">📦 <span>قطعات و کالا</span></a>
+                </div>
+                <div class="nav-group">
+                    <a href="{{ url_for('logout') }}">🚪 <span>خروج</span></a>
+                </div>
+                {% endif %}
+            </nav>
+            <div class="user-info">
+                <div style="opacity:0.85;font-size:0.75rem;margin-bottom:4px;">{% if session.get("role")=="technician" %}سرویس‌کار{% else %}مدیر{% endif %}</div>
+                👤 {{ session.get('full_name', 'کاربر') }}
+            </div>
+        </aside>
+        <div class="main">
+            <div class="sidebar-overlay" id="sidebarOverlay" role="button" aria-label="بستن منو"></div>
+        <div class="topbar">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <button type="button" class="menu-btn" id="menuBtn" aria-label="منو" aria-expanded="false">☰</button>
+                    <div>{% block page_title %}{% endblock %}</div>
+                </div>
+                <div style="font-size:0.85rem;color:#7f8c8d;">تاریخ امروز: {{ today if today is defined else '' }}</div>
+            </div>
+            <div class="content">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for cat, msg in messages %}
+                            <div class="alert alert-{{ cat }}">{{ msg }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                {% block content %}{% endblock %}
+            </div>
+            <div class="footer-note">
+                نرم‌افزار حسابداری آریو — نسخه ۵ — موبایل | تمامی حقوق محفوظ است
+            </div>
+        </div>
     </div>
-  </aside>
+    {% block extra_js %}{% endblock %}
 
-  <div class="main">
-    <header class="topbar">
-      <button type="button" class="menu-btn" onclick="toggleSidebar()" aria-label="منو">☰</button>
-      <div class="page-title">{% block page_title %}آریو سرویس{% endblock %}</div>
-    </header>
-    <main class="content">
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% for cat, msg in messages %}
-          <div class="alert alert-{{ cat }} no-print">{{ msg }}</div>
-        {% endfor %}
-      {% endwith %}
-      {% block content %}{% endblock %}
-    </main>
-    <div class="footer-note no-print">آریو — مدیریت سرویس آسانسور</div>
-  </div>
-</div>
-<script>
-function toggleSidebar(){
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('overlay').classList.toggle('open');
-}
-function closeSidebar(){
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('overlay').classList.remove('open');
-}
-document.querySelectorAll('.sidebar nav a').forEach(function(a){
-  a.addEventListener('click', closeSidebar);
-});
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(function(){});
-}
-</script>
-{% block extra_js %}{% endblock %}
+    <script>
+    function toggleSidebar() {
+        var s = document.querySelector('.sidebar');
+        var o = document.getElementById('sidebarOverlay');
+        if (!s) return;
+        var open = s.classList.toggle('open');
+        if (o) o.classList.toggle('show', open);
+        document.body.classList.toggle('sidebar-open', open);
+    }
+    function closeSidebar() {
+        var s = document.querySelector('.sidebar');
+        var o = document.getElementById('sidebarOverlay');
+        if (s) s.classList.remove('open');
+        if (o) o.classList.remove('show');
+        document.body.classList.remove('sidebar-open');
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        var btn = document.getElementById('menuBtn');
+        if (btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleSidebar();
+            });
+        }
+        var ov = document.getElementById('sidebarOverlay');
+        if (ov) ov.addEventListener('click', closeSidebar);
+        document.querySelectorAll('.sidebar nav a').forEach(function(a) {
+            a.addEventListener('click', function() {
+                if (window.innerWidth <= 900) closeSidebar();
+            });
+        });
+        // auto-wrap tables for mobile horizontal scroll
+        document.querySelectorAll('.card > table, .content > table').forEach(function(tbl) {
+            if (tbl.parentElement && tbl.parentElement.classList.contains('table-wrap')) return;
+            var w = document.createElement('div');
+            w.className = 'table-wrap';
+            tbl.parentNode.insertBefore(w, tbl);
+            w.appendChild(tbl);
+        });
+    });
+    </script>
+
 </body>
 </html>

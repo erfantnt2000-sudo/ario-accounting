@@ -5,6 +5,7 @@
 <div class="card">
     <h3>ثبت نوبت جدید</h3>
     <form method="post" action="{{ url_for('appointment_add') }}" class="form-row" style="align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
             <label>مشتری *</label>
             <select name="party_id" class="form-control" required>
@@ -72,6 +73,7 @@
                 </td>
                 <td>
                     <form method="post" action="{{ url_for('appointment_toggle', aid=a.id) }}" style="display:inline;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-sm {% if a.is_done %}btn-secondary{% else %}btn-success{% endif %}">
                             {% if a.is_done %}✓ انجام شده — لغو{% else %}☐ تیک بزن{% endif %}
                         </button>

@@ -5,6 +5,7 @@
 <div class="card">
 <h3>برنامه‌ریزی بازدید جدید</h3>
 <form method="post" action="{{ url_for('elev_visit_add') }}" class="form-row" style="align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <div class="form-group"><label>آسانسور *</label>
 <select name="elevator_id" class="form-control" required>
 <option value="">—</option>{% for e in elevators %}<option value="{{ e.id }}">{{ e.code }}</option>{% endfor %}
@@ -33,12 +34,13 @@
 <td>
 {% if v.status != 'done' %}
 <form method="post" action="{{ url_for('elev_visit_done', vid=v.id) }}" class="mobile-stack-form" style="display:flex;gap:6px;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input name="visit_date" class="form-control" style="width:110px;" value="{{ today }}" placeholder="تاریخ">
 <input name="report_text" class="form-control" style="width:160px;" placeholder="گزارش">
 <input name="customer_sign" class="form-control" style="width:100px;" placeholder="امضا/نام">
 <button class="btn btn-sm btn-success">ثبت انجام</button>
 </form>
-{% else %}{{ v.report_text or '—' }}{% endif %}
+{% else %}{{ v.report_text or '—' }} <a href="{{ url_for('elev_visit_view', vid=v.id) }}" class="btn btn-sm btn-secondary">مشاهده گزارش</a>{% endif %}
 </td>
 </tr>
 {% else %}<tr><td colspan="5" style="text-align:center;">بازدیدی نیست</td></tr>{% endfor %}

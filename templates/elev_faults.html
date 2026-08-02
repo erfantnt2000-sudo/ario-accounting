@@ -5,6 +5,7 @@
 <div class="card">
 <h3>ثبت خرابی جدید</h3>
 <form method="post" action="{{ url_for('elev_fault_add') }}" class="form-row" style="align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <div class="form-group"><label>آسانسور *</label>
 <select name="elevator_id" class="form-control" required>
 <option value="">—</option>{% for e in elevators %}<option value="{{ e.id }}">{{ e.code }} — {{ e.name or '' }}</option>{% endfor %}
@@ -35,11 +36,13 @@
 <td>
 {% if f.status == 'open' %}
 <form method="post" action="{{ url_for('elev_fault_dispatch', fid=f.id) }}" class="mobile-stack-form" style="display:inline-flex;gap:4px;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <select name="technician_id" class="form-control" style="width:120px;">{% for t in techs %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select>
 <button class="btn btn-sm btn-primary">اعزام</button>
 </form>
 {% elif f.status == 'dispatched' %}
 <form method="post" action="{{ url_for('elev_fault_close', fid=f.id) }}" class="mobile-stack-form" style="display:flex;gap:4px;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input name="close_report" class="form-control" style="width:140px;" placeholder="گزارش بستن">
 <input type="number" name="labor_cost" class="form-control" style="width:90px;" placeholder="اجرت">
 <input type="number" name="parts_cost" class="form-control" style="width:90px;" placeholder="قطعه">

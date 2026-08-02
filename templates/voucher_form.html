@@ -4,6 +4,7 @@
 {% block content %}
 <div class="card">
     <form method="post" id="voucherForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-row">
             <div class="form-group">
                 <label>تاریخ سند</label>

@@ -4,6 +4,7 @@
 {% block content %}
 <div class="card" style="max-width:600px;">
     <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
             <label>کد حساب *</label>
             <input type="text" name="code" class="form-control" required

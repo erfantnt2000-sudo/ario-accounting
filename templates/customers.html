@@ -1,33 +1,24 @@
 {% extends "base.html" %}
-{% block title %}مشتریان{% endblock %}
-{% block page_title %}<strong>مدیریت مشتریان</strong>{% endblock %}
+{% block title %}کارفرماها و قراردادها{% endblock %}
+{% block page_title %}<strong>لیست کارفرماها</strong>{% endblock %}
 {% block content %}
-<div class="wizard">
-  <div class="step active"><div class="circle">👤</div><span>اطلاعات مشتری</span></div>
-  <div class="step"><div class="circle">🏢</div><span>اطلاعات ساختمان</span></div>
-  <div class="step"><div class="circle">🛗</div><span>اطلاعات دستگاه</span></div>
-  <div class="step"><div class="circle">📄</div><span>اطلاعات قرارداد</span></div>
-</div>
-
 <div class="card">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-    <h2 style="margin:0;">مشتری خود را انتخاب کنید</h2>
-    <a href="{{ url_for('customer_register') }}" class="btn btn-primary">+ مشتری جدید</a>
-  </div>
-  <div style="margin-bottom:12px;">
-    <input type="search" class="form-control" placeholder="جست و جو..." oninput="filterTable(this.value)" style="max-width:320px;">
+    <h2 style="margin:0;">کارفرما / ساختمان / قرارداد</h2>
+    <a href="{{ url_for('customer_register') }}" class="btn btn-primary">+ ثبت یکجای قرارداد جدید</a>
   </div>
   <div class="table-wrap">
-  <table id="custTable">
+  <table>
     <thead>
       <tr>
-        <th>ردیف</th>
         <th>کارفرما</th>
         <th>تلفن</th>
         <th>ساختمان</th>
-        <th>شروع</th>
-        <th>پایان</th>
+        <th>تعداد ساختمان</th>
+        <th>انقضای نزدیک‌ترین قرارداد</th>
+        <th>سرویس بعدی</th>
         <th>مبلغ قرارداد</th>
+        <th>پرداختی</th>
         <th>مانده</th>
         <th></th>
       </tr>
@@ -36,29 +27,40 @@
       {% for c in customers %}
       {% set bal = (c.total_contract or 0) - (c.total_paid or 0) %}
       <tr>
-        <td>{{ loop.index }}</td>
         <td><strong>{{ c.name }}</strong></td>
         <td class="text-left">{{ c.phone or '—' }}</td>
-        <td>{{ c.building_name or '—' }}</td>
-        <td>{{ c.last_start or '—' }}</td>
-        <td>{{ c.last_end or '—' }}</td>
+        <td>{{ c.building_name or '—' }}{% if c.building_count and c.building_count > 1 %} <span class="badge">+{{ c.building_count - 1 }} ساختمان دیگر</span>{% endif %}</td>
+        <td class="text-left">{{ c.building_count or 0 }}</td>
+        <td class="text-left">
+          {% if c.nearest_expiry %}
+            {% if c.nearest_expiry < today %}
+            <span class="badge" style="background:#fde2e2;color:#c0392b;">{{ c.nearest_expiry }} (منقضی)</span>
+            {% else %}
+            {{ c.nearest_expiry }}
+            {% endif %}
+          {% else %}—{% endif %}
+        </td>
+        <td class="text-left">
+          {% if c.next_service %}
+            {% if c.next_service < today %}
+            <span class="badge" style="background:#fde2e2;color:#c0392b;">{{ c.next_service }} (عقب‌افتاده)</span>
+            {% else %}
+            {{ c.next_service }}
+            {% endif %}
+          {% else %}—{% endif %}
+        </td>
         <td class="text-left">{{ "{:,.0f}".format(c.total_contract or 0) }}</td>
-        <td class="text-left" style="font-weight:bold;color:{% if bal>0 %}#dc2626{% else %}#16a34a{% endif %};">{{ "{:,.0f}".format(bal) }}</td>
+        <td class="text-left">{{ "{:,.0f}".format(c.total_paid or 0) }}</td>
+        <td class="text-left" style="font-weight:bold;color:{% if bal>0 %}#c0392b{% else %}#27ae60{% endif %};">
+          {{ "{:,.0f}".format(bal) }}
+        </td>
         <td><a class="btn btn-sm btn-secondary" href="{{ url_for('customer_edit', cid=c.id) }}">ویرایش</a></td>
       </tr>
       {% else %}
-      <tr><td colspan="9" style="text-align:center;color:var(--muted);">مشتری ثبت نشده — از «مشتری جدید» شروع کنید</td></tr>
+      <tr><td colspan="10" style="text-align:center;">هنوز کارفرمایی ثبت نشده. از دکمه «ثبت یکجای قرارداد جدید» شروع کنید.</td></tr>
       {% endfor %}
     </tbody>
   </table>
   </div>
 </div>
-<script>
-function filterTable(q){
-  q = (q||'').toLowerCase();
-  document.querySelectorAll('#custTable tbody tr').forEach(function(tr){
-    tr.style.display = tr.innerText.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
-  });
-}
-</script>
 {% endblock %}

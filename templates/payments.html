@@ -6,6 +6,7 @@
 <div class="card">
     <h3>ثبت پرداخت جدید</h3>
     <form method="post" action="{{ url_for('payment_add') }}" class="form-row" style="align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
             <label>مشتری *</label>
             <select name="party_id" class="form-control" required>
