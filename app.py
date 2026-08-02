@@ -21,11 +21,21 @@ _env_secret = os.environ.get("SECRET_KEY")
 if _env_secret:
     app.secret_key = _env_secret
 else:
-    # بدون SECRET_KEY ثابت در کد: هر بار اجرا یک کلید تصادفی امن ساخته می‌شود
-    # (نشست‌های قبلی با ری‌استارت باطل می‌شوند، ولی هیچ کلید قابل‌حدسی در کد نمی‌ماند)
-    app.secret_key = secrets.token_hex(32)
-    print("⚠️  متغیر محیطی SECRET_KEY تنظیم نشده؛ یک کلید موقت تصادفی استفاده می‌شود. "
-          "برای دیپلوی واقعی حتماً SECRET_KEY را در محیط سرور تنظیم کنید.")
+    # برای اجرای محلی: کلید را در فایل کنار دیتابیس نگه می‌داریم تا با هر ری‌استارت نشست‌ها باطل نشوند
+    # (در دیپلوی واقعی حتماً SECRET_KEY را در Environment تنظیم کنید)
+    _secret_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", ".secret_key")
+    try:
+        os.makedirs(os.path.dirname(_secret_file), exist_ok=True)
+        if os.path.isfile(_secret_file):
+            with open(_secret_file, "r", encoding="utf-8") as f:
+                app.secret_key = f.read().strip() or secrets.token_hex(32)
+        else:
+            app.secret_key = secrets.token_hex(32)
+            with open(_secret_file, "w", encoding="utf-8") as f:
+                f.write(app.secret_key)
+    except Exception:
+        app.secret_key = secrets.token_hex(32)
+        print("⚠️  نتوانستیم SECRET_KEY را روی دیسک ذخیره کنیم؛ کلید موقت استفاده می‌شود.")
 app.config['TEMPLATES_AUTO_RELOAD'] = not (os.environ.get('PORT') or os.environ.get('RENDER'))
 
 # --- Performance: cache static, security headers ---
