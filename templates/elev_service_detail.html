@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}جزئیات سرویس{% endblock %}
+{% block page_title %}<strong>جزئیات سرویس — {{ visit.elev_code }}</strong>{% endblock %}
+{% block content %}
+<div class="card">
+  <p>
+    <b>ساختمان:</b> {{ visit.building_name or '—' }}
+    {% if visit.region %} · <b>منطقه:</b> {{ visit.region }}{% endif %}<br>
+    <b>کارفرما:</b> {{ visit.customer_name or '—' }}
+    {% if visit.customer_phone %} · {{ visit.customer_phone }}{% endif %}<br>
+    <b>تاریخ برنامه:</b> {{ visit.planned_date }}
+    · <b>انجام:</b> {{ visit.visit_date or '—' }}
+    · <b>سرویس‌کار:</b> {{ visit.tech_name or '—' }}
+    · <b>وضعیت:</b> {{ visit.status }}
+  </p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-secondary" href="{{ url_for('elev_services') }}">← بازگشت به لیست</a>
+    <a class="btn btn-primary" href="{{ url_for('elev_checklist_print', vid=visit.id) }}" target="_blank">🖨️ چاپ چک‌لیست</a>
+    {% if visit.status != 'done' %}
+    <a class="btn btn-success" href="{{ url_for('tech_visit_report', vid=visit.id) }}">ثبت گزارش / انجام</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h3>هزینه سرویس (اجرت، ایاب‌وذهاب، تخفیف) + یادآوری بعدی</h3>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="save_costs">
+    <div class="form-row">
+      <div class="form-group"><label>اجرت (ریال)</label>
+        <input type="number" name="labor_cost" class="form-control" value="{{ visit.labor_cost or 0 }}"></div>
+      <div class="form-group"><label>ایاب و ذهاب (ریال)</label>
+        <input type="number" name="transport_cost" class="form-control" value="{{ visit.transport_cost or 0 }}"></div>
+      <div class="form-group"><label>تخفیف (ریال)</label>
+        <input type="number" name="discount_amount" class="form-control" value="{{ visit.discount_amount or 0 }}"></div>
+      <div class="form-group"><label>یادآوری سرویس بعدی</label>
+        <input name="next_reminder" class="form-control" value="{{ visit.next_reminder or '' }}" placeholder="1404/02/15"></div>
+    </div>
+    <div class="form-group"><label>یادداشت یادآوری</label>
+      <input name="reminder_note" class="form-control" value="{{ visit.reminder_note or '' }}" placeholder="مثلاً: تعویض روغن"></div>
+    <button type="submit" class="btn btn-primary">ذخیره هزینه‌ها و یادآوری</button>
+  </form>
+  <p style="margin-top:12px;font-size:0.9rem;">
+    جمع قطعات: <b>{{ "{:,.0f}".format(parts_sum or 0) }}</b> ·
+    جمع کل (قطعات+اجرت+ایاب − تخفیف): <b style="color:var(--purple,#7c3aed);">{{ "{:,.0f}".format(total or 0) }}</b> ریال
+  </p>
+</div>
+
+<div class="card">
+  <h3>قطعات استفاده‌شده</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>نام قطعه</th><th>تعداد</th><th>قیمت واحد</th><th>مبلغ</th></tr></thead>
+    <tbody>
+      {% for p in parts %}
+      <tr>
+        <td>{{ p.part_name }}</td>
+        <td>{{ p.qty }}</td>
+        <td class="text-left">{{ "{:,.0f}".format(p.unit_price or 0) }}</td>
+        <td class="text-left">{{ "{:,.0f}".format(p.amount or 0) }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" style="text-align:center;color:var(--muted);">قطعه‌ای ثبت نشده</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <form method="post" style="margin-top:12px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="add_part">
+    <div class="form-row">
+      <div class="form-group"><label>از انبار</label>
+        <select name="product_id" class="form-control">
+          <option value="">— دستی —</option>
+          {% for p in products %}
+          <option value="{{ p.id }}">{{ p.code }} — {{ p.name }} ({{ p.stock_qty }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group"><label>نام قطعه</label>
+        <input name="part_name" class="form-control" placeholder="اگر دستی است"></div>
+      <div class="form-group"><label>تعداد</label>
+        <input type="number" step="0.01" name="qty" class="form-control" value="1"></div>
+      <div class="form-group"><label>قیمت واحد</label>
+        <input type="number" name="unit_price" class="form-control" value="0"></div>
+    </div>
+    <button type="submit" class="btn btn-primary">+ ثبت قطعه</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>ارسال اعلان</h3>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="notify">
+    <div class="form-row">
+      <div class="form-group"><label>گیرنده (تلفن / نام)</label>
+        <input name="recipient" class="form-control" value="{{ visit.customer_phone or visit.customer_name or '' }}"></div>
+      <div class="form-group" style="grid-column: span 2;"><label>پیام</label>
+        <input name="message" class="form-control" required placeholder="سرویس شما برای تاریخ ... برنامه‌ریزی شد"></div>
+    </div>
+    <button type="submit" class="btn btn-secondary">ثبت اعلان</button>
+  </form>
+  {% if notifs %}
+  <ul style="margin-top:12px;font-size:0.85rem;color:var(--muted);">
+    {% for n in notifs %}
+    <li>{{ n.created_at[:16] if n.created_at else '' }} → {{ n.recipient }}: {{ n.message }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+
+{% if checklist %}
+<div class="card">
+  <h3>چک‌لیست ثبت‌شده</h3>
+  <ul>
+    {% for item in checklist %}
+    <li>{% if item.is_ok %}✓{% else %}✗{% endif %} {{ item.item_label }} {% if item.note %}— {{ item.note }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if visit.report_text %}
+<div class="card">
+  <h3>گزارش سرویس</h3>
+  <p>{{ visit.report_text }}</p>
+  {% if visit.customer_sign %}<p>امضا: {{ visit.customer_sign }}</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

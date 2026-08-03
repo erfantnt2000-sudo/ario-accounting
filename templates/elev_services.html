@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}مدیریت سرویس{% endblock %}
+{% block page_title %}<strong>مدیریت سرویس‌ها</strong>{% endblock %}
+{% block content %}
+<div class="card">
+  <h2 style="margin-top:0;">جستجو و فیلتر سرویس</h2>
+  <form method="get" class="form-row" style="align-items:end;">
+    <div class="form-group">
+      <label>وضعیت</label>
+      <select name="status" class="form-control">
+        <option value="all" {% if status=='all' %}selected{% endif %}>همه</option>
+        <option value="done" {% if status=='done' %}selected{% endif %}>انجام‌شده</option>
+        <option value="pending" {% if status=='pending' %}selected{% endif %}>انجام‌نشده</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>سرویس‌کار</label>
+      <select name="tech_id" class="form-control">
+        <option value="">— همه —</option>
+        {% for t in techs %}
+        <option value="{{ t.id }}" {% if tech_id|string == t.id|string %}selected{% endif %}>{{ t.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>منطقه</label>
+      <input name="region" class="form-control" list="regionList" value="{{ region }}" placeholder="منطقه">
+      <datalist id="regionList">
+        {% for r in regions %}<option value="{{ r.region }}">{% endfor %}
+      </datalist>
+    </div>
+    <div class="form-group">
+      <label>از تاریخ</label>
+      <input name="date_from" class="form-control" value="{{ date_from }}" placeholder="1404/01/01">
+    </div>
+    <div class="form-group">
+      <label>تا تاریخ</label>
+      <input name="date_to" class="form-control" value="{{ date_to }}" placeholder="1404/12/29">
+    </div>
+    <div class="form-group">
+      <label>جستجو</label>
+      <input name="q" class="form-control" value="{{ q }}" placeholder="کد آسانسور، ساختمان، مشتری...">
+    </div>
+    <div class="form-group">
+      <button type="submit" class="btn btn-primary">اعمال فیلتر</button>
+      <a href="{{ url_for('elev_services') }}" class="btn btn-secondary">پاک کردن</a>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+    <h2 style="margin:0;">نتایج ({{ rows|length }})</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <a href="{{ url_for('elev_services', status='done') }}" class="btn btn-sm btn-secondary">فقط انجام‌شده</a>
+      <a href="{{ url_for('elev_services', status='pending') }}" class="btn btn-sm btn-secondary">فقط انجام‌نشده</a>
+      <a href="{{ url_for('elev_missed') }}" class="btn btn-sm btn-secondary">عقب‌افتاده‌ها</a>
+      <a href="{{ url_for('elev_today') }}" class="btn btn-sm btn-primary">سرویس امروز</a>
+    </div>
+  </div>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>تاریخ برنامه</th>
+        <th>انجام</th>
+        <th>آسانسور</th>
+        <th>ساختمان / منطقه</th>
+        <th>مشتری</th>
+        <th>سرویس‌کار</th>
+        <th>وضعیت</th>
+        <th>عملیات</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for v in rows %}
+      <tr>
+        <td>{{ v.planned_date }}</td>
+        <td>{{ v.visit_date or '—' }}</td>
+        <td>{{ v.elev_code }} {% if v.elev_name %}— {{ v.elev_name }}{% endif %}</td>
+        <td>{{ v.building_name or '—' }}{% if v.region %}<br><small style="color:var(--muted);">{{ v.region }}</small>{% endif %}</td>
+        <td>{{ v.customer_name or '—' }}{% if v.customer_phone %}<br><small>{{ v.customer_phone }}</small>{% endif %}</td>
+        <td>
+          <form method="post" action="{{ url_for('elev_service_assign', vid=v.id) }}" style="display:flex;gap:4px;align-items:center;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <select name="technician_id" class="form-control" style="min-width:110px;padding:4px 6px;font-size:0.8rem;">
+              <option value="">—</option>
+              {% for t in techs %}
+              <option value="{{ t.id }}" {% if v.technician_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm btn-secondary" title="تغییر سرویس‌کار">✓</button>
+          </form>
+        </td>
+        <td>
+          {% if v.status == 'done' %}
+          <span class="badge" style="background:#d1fae5;color:#065f46;">انجام شد</span>
+          {% else %}
+          <span class="badge" style="background:#fef3c7;color:#92400e;">در انتظار</span>
+          {% endif %}
+        </td>
+        <td style="white-space:nowrap;">
+          <form method="post" action="{{ url_for('elev_service_date', vid=v.id) }}" style="display:inline-flex;gap:4px;align-items:center;margin-bottom:4px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input name="new_date" class="form-control" style="width:100px;padding:4px 6px;font-size:0.8rem;" value="{{ v.visit_date or v.planned_date }}" placeholder="تاریخ">
+            <button type="submit" class="btn btn-sm btn-secondary" title="تغییر تاریخ">📅</button>
+          </form>
+          <a class="btn btn-sm btn-primary" href="{{ url_for('elev_service_detail', vid=v.id) }}">جزئیات</a>
+          <a class="btn btn-sm btn-secondary" href="{{ url_for('elev_checklist_print', vid=v.id) }}" target="_blank">چاپ چک‌لیست</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" style="text-align:center;color:var(--muted);">موردی با این فیلتر یافت نشد</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>چک‌لیست سرویس — {{ visit.elev_code }}</title>
+<style>
+body { font-family: Tahoma, sans-serif; padding: 24px; color: #111; }
+h1 { font-size: 1.2rem; margin-bottom: 8px; }
+.meta { font-size: 0.9rem; margin-bottom: 16px; line-height: 1.7; }
+table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+th, td { border: 1px solid #333; padding: 8px 10px; text-align: right; }
+th { background: #f3f4f6; }
+.check { width: 40px; text-align: center; }
+.sign { margin-top: 40px; display: flex; justify-content: space-between; }
+.sign div { width: 40%; border-top: 1px solid #333; padding-top: 6px; text-align: center; font-size: 0.85rem; }
+@media print { .no-print { display: none !important; } body { padding: 0; } }
+</style>
+</head>
+<body>
+<button class="no-print" onclick="window.print()" style="padding:8px 16px;margin-bottom:12px;">چاپ</button>
+<h1>چک‌لیست استاندارد سرویس آسانسور</h1>
+<div class="meta">
+  آسانسور: <b>{{ visit.elev_code }}</b> {{ visit.elev_name or '' }}<br>
+  ساختمان: {{ visit.building_name or '—' }} · آدرس: {{ visit.building_address or '—' }}<br>
+  کارفرما: {{ visit.customer_name or '—' }} · سرویس‌کار: {{ visit.tech_name or '—' }}<br>
+  تاریخ برنامه: {{ visit.planned_date }} · تاریخ انجام: {{ visit.visit_date or '—' }} · چاپ: {{ today }}
+</div>
+<table>
+  <thead><tr><th class="check">✓</th><th>مورد بررسی</th><th>توضیح</th></tr></thead>
+  <tbody>
+  {% for item in checklist %}
+  <tr>
+    <td class="check">{% if item.is_ok == 1 %}✓{% elif item.is_ok == 0 %}✗{% else %}☐{% endif %}</td>
+    <td>{{ item.item_label }}</td>
+    <td>{{ item.note or '' }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if visit.report_text %}
+<p style="margin-top:16px;"><b>گزارش:</b> {{ visit.report_text }}</p>
+{% endif %}
+<div class="sign">
+  <div>امضا سرویس‌کار</div>
+  <div>امضا کارفرما {% if visit.customer_sign %}({{ visit.customer_sign }}){% endif %}</div>
+</div>
+</body>
+</html>

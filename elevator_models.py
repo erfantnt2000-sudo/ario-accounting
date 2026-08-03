@@ -195,14 +195,45 @@ def init_elevator_tables():
         pass
 
     # مهاجرت: ستون‌های امضای دیجیتال (کنواس) و عکس واقعی بازدید (base64) برای دیتابیس‌های قدیمی‌تر
+
     for col_sql in [
         "ALTER TABLE service_visits ADD COLUMN signature_data TEXT",
         "ALTER TABLE service_visits ADD COLUMN photo_data TEXT",
+        "ALTER TABLE service_visits ADD COLUMN labor_cost REAL DEFAULT 0",
+        "ALTER TABLE service_visits ADD COLUMN transport_cost REAL DEFAULT 0",
+        "ALTER TABLE service_visits ADD COLUMN discount_amount REAL DEFAULT 0",
+        "ALTER TABLE service_visits ADD COLUMN next_reminder TEXT",
+        "ALTER TABLE service_visits ADD COLUMN reminder_note TEXT",
+        "ALTER TABLE buildings ADD COLUMN region TEXT",
     ]:
         try:
             c.execute(col_sql)
         except Exception:
-            pass  # ستون از قبل وجود دارد
+            pass
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS visit_parts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            visit_id INTEGER NOT NULL,
+            product_id INTEGER,
+            part_name TEXT,
+            qty REAL DEFAULT 1,
+            unit_price REAL DEFAULT 0,
+            amount REAL DEFAULT 0,
+            FOREIGN KEY (visit_id) REFERENCES service_visits(id),
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        )
+    """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS service_notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            visit_id INTEGER,
+            recipient TEXT,
+            message TEXT,
+            created_at TEXT,
+            is_sent INTEGER DEFAULT 0
+        )
+    """)
 
     conn.commit()
     conn.close()
