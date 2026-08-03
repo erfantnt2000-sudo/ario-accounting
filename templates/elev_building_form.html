@@ -18,7 +18,5 @@
 <div class="form-group"><label>آدرس</label><input name="address" class="form-control"></div>
 <button class="btn btn-primary">ذخیره</button>
 <a href="{{ url_for('elev_buildings') }}" class="btn btn-secondary">انصراف</a>
-<div class="form-group"><label>منطقه</label>
-<input name="region" class="form-control" value="{{ building.region if building and building.region is defined else '' }}" placeholder="مثلاً شمال تهران"></div>
 </form></div>
 {% endblock %}

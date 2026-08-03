@@ -8,7 +8,8 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 import os
 import sqlite3
 import secrets
-from datetime import datetime, timedelta
+import re
+from datetime import datetime
 from functools import wraps
 import jdatetime
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -17,67 +18,47 @@ from database import (init_db, get_connection, get_next_voucher_no, today_jalali
 from elevator_models import init_elevator_tables, seed_elevator_sample
 
 app = Flask(__name__)
-
-# پشت پروکسی Render/Railway تا HTTPS و IP درست تشخیص داده شود
-from werkzeug.middleware.proxy_fix import ProxyFix
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
-
-_is_cloud = bool(os.environ.get("PORT") or os.environ.get("RENDER") or os.environ.get("RAILWAY_ENVIRONMENT"))
 _env_secret = os.environ.get("SECRET_KEY")
 if _env_secret:
     app.secret_key = _env_secret
-elif _is_cloud:
-    # روی کلود بدون SECRET_KEY: کلید ثابتِ موقت تا لاگین کار کند
-    # حتماً در داشبورد Render متغیر SECRET_KEY را تنظیم کنید
-    app.secret_key = "ario-render-fallback-change-me-2026"
-    print("⚠️  SECRET_KEY در Environment تنظیم نشده. یک کلید موقت استفاده می‌شود.")
-    print("   در Render → Environment → SECRET_KEY را به یک رشته تصادفی تنظیم کنید.")
 else:
-    # اجرای محلی: کلید را در فایل نگه می‌داریم
-    _secret_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", ".secret_key")
+    # بدون SECRET_KEY در محیط: کلید را یک‌بار می‌سازیم و روی دیسک ذخیره می‌کنیم تا
+    # تمام پردازه‌های gunicorn (مثلاً --workers 2) همان یک کلید مشترک را بخوانند.
+    # اگر این کلید هر پردازه جدا و تصادفی باشد، کوکی نشست کاربر که توسط یک worker
+    # امضا شده توسط worker دیگر نامعتبر تشخیص داده می‌شود و کاربر مدام به صفحه ورود
+    # برمی‌گردد یا کلیک روی منو اثر نمی‌کند — دقیقاً همان علامتی که این باگ ایجاد می‌کرد.
+    _key_path = os.path.join(os.path.dirname(os.path.abspath(DB_PATH)), ".secret_key")
     try:
-        os.makedirs(os.path.dirname(_secret_file), exist_ok=True)
-        if os.path.isfile(_secret_file):
-            with open(_secret_file, "r", encoding="utf-8") as f:
-                app.secret_key = f.read().strip() or secrets.token_hex(32)
-        else:
+        os.makedirs(os.path.dirname(_key_path), exist_ok=True)
+        if os.path.exists(_key_path):
+            with open(_key_path, "r", encoding="utf-8") as f:
+                app.secret_key = f.read().strip()
+        if not _env_secret and not getattr(app, "secret_key", None):
             app.secret_key = secrets.token_hex(32)
-            with open(_secret_file, "w", encoding="utf-8") as f:
+            with open(_key_path, "w", encoding="utf-8") as f:
                 f.write(app.secret_key)
+            # اگر پردازه دیگری هم‌زمان همین فایل را نوشت، آخرین نسخه‌ی واقعی روی دیسک را
+            # بخوان تا همه‌ی workerها سرانجام به یک کلید مشترک همگرا شوند
+            with open(_key_path, "r", encoding="utf-8") as f:
+                app.secret_key = f.read().strip() or app.secret_key
+        print("⚠️  متغیر محیطی SECRET_KEY تنظیم نشده؛ از یک کلید تصادفیِ ذخیره‌شده در "
+              f"{_key_path} استفاده می‌شود. برای دیپلوی روی چند سرور/کانتینر جدا (نه فقط چند "
+              "worker روی یک سرور)، حتماً SECRET_KEY را در محیط تنظیم کنید تا نشست‌ها بین آن‌ها هم مشترک بمانند.")
     except Exception:
+        # اگر دیسک قابل‌نوشتن نبود، حداقل در همین پردازه یک کلید ثابت داریم
         app.secret_key = secrets.token_hex(32)
-
-# کوکی نشست برای HTTPS (Render) و جلوگیری از حلقهٔ لاگین
-app.config.update(
-    TEMPLATES_AUTO_RELOAD=not _is_cloud,
-    SESSION_COOKIE_NAME="ario_session",
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE="Lax",
-    # Secure فقط وقتی واقعاً HTTPS باشد (با ProxyFix درست تشخیص داده می‌شود)
-    # مقدار ثابت True روی بعضی پروکسی‌ها باعث می‌شود کوکی ست نشود
-    SESSION_COOKIE_SECURE=False,  # در after_request بر اساس request.is_secure تنظیم می‌شود
-    SESSION_COOKIE_PATH="/",
-    PERMANENT_SESSION_LIFETIME=timedelta(days=7),
-    PREFERRED_URL_SCHEME="https" if _is_cloud else "http",
-)
+app.config['TEMPLATES_AUTO_RELOAD'] = not (os.environ.get('PORT') or os.environ.get('RENDER'))
 
 # --- Performance: cache static, security headers ---
 @app.after_request
 def add_perf_headers(response):
+    # static-like templates don't change often; short cache for assets
     if request.path.startswith("/static"):
         response.headers["Cache-Control"] = "public, max-age=86400"
     else:
         response.headers["Cache-Control"] = "no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
-    # روی HTTPS (Render) پرچم Secure را روی کوکی نشست اعمال کن
-    if request.is_secure and "Set-Cookie" in response.headers:
-        cookies = response.headers.getlist("Set-Cookie")
-        response.headers.pop("Set-Cookie", None)
-        for c in cookies:
-            if "ario_session" in c and "Secure" not in c:
-                c = c + "; Secure"
-            response.headers.add("Set-Cookie", c)
     return response
 
 # ---------------- CSRF Protection ----------------
@@ -94,18 +75,12 @@ def inject_csrf_token():
 
 @app.before_request
 def csrf_protect():
-    if request.method != "POST":
-        return
-    # لاگین و health از CSRF معاف‌اند تا حلقهٔ رفرش روی Render رخ ندهد
-    # (لاگین با نام‌کاربری/رمز محافظت می‌شود)
-    if request.endpoint in ("health", "login"):
-        return
-    form_token = request.form.get("csrf_token")
-    session_token = session.get("_csrf_token")
-    if not form_token or not session_token or not secrets.compare_digest(str(form_token), str(session_token)):
-        session.pop("_csrf_token", None)
-        flash("نشست منقضی شده. لطفاً دوباره وارد شوید یا صفحه را رفرش کنید.", "danger")
-        return redirect(request.referrer or url_for("login"))
+    if request.method == "POST":
+        form_token = request.form.get("csrf_token")
+        session_token = session.get("_csrf_token")
+        if not form_token or not session_token or not secrets.compare_digest(form_token, session_token):
+            flash("نشست شما منقضی شده یا درخواست نامعتبر است؛ لطفاً دوباره تلاش کنید.", "danger")
+            return redirect(request.referrer or url_for("login"))
 
 
 
@@ -135,6 +110,20 @@ def admin_required(f):
         if session.get("role") == "technician":
             flash("دسترسی فقط برای مدیر است.", "danger")
             return redirect(url_for("tech_home"))
+        if session.get("role") == "customer":
+            flash("دسترسی فقط برای مدیر است.", "danger")
+            return redirect(url_for("portal_home"))
+        return f(*args, **kwargs)
+    return decorated
+
+def customer_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("login"))
+        if session.get("role") != "customer" or not session.get("party_id"):
+            flash("این بخش فقط برای پرتال مشتریان است.", "danger")
+            return redirect(url_for("login"))
         return f(*args, **kwargs)
     return decorated
 
@@ -154,12 +143,6 @@ SERVICE_CHECKLIST = [
 
 
 
-@app.route("/health")
-def health():
-    """برای health-check سرویس ابری (Render و غیره)"""
-    return {"status": "ok", "app": "ario-accounting"}, 200
-
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -171,8 +154,6 @@ def login():
         ).fetchone()
         conn.close()
         if user and check_password_hash(user["password"], password):
-            session.clear()  # پاکسازی نشست قبلی قبل از ورود
-            session.permanent = True
             session["user_id"] = user["id"]
             session["username"] = user["username"]
             session["full_name"] = user["full_name"]
@@ -192,6 +173,10 @@ def login():
                 conn2.close()
                 flash("ورود سرویس‌کار موفقیت‌آمیز بود.", "success")
                 return redirect(url_for("tech_home"))
+            if session["role"] == "customer":
+                session["party_id"] = user["party_id"] if "party_id" in user.keys() else None
+                flash("ورود موفقیت‌آمیز بود.", "success")
+                return redirect(url_for("portal_home"))
             flash("ورود موفقیت‌آمیز بود.", "success")
             return redirect(url_for("dashboard"))
         flash("نام کاربری یا رمز عبور اشتباه است.", "danger")
@@ -730,6 +715,7 @@ def customer_edit(cid):
     conn = get_connection()
     customer = conn.execute("SELECT * FROM parties WHERE id=?", (cid,)).fetchone()
     if not customer:
+        conn.close()
         flash("مشتری یافت نشد.", "danger")
         return redirect(url_for("customers"))
     if request.method == "POST":
@@ -742,8 +728,12 @@ def customer_edit(cid):
         conn.close()
         flash("ویرایش شد.", "success")
         return redirect(url_for("customers"))
+    buildings = conn.execute("SELECT * FROM buildings WHERE party_id=? ORDER BY name", (cid,)).fetchall()
+    contracts = conn.execute("SELECT * FROM contracts WHERE party_id=? ORDER BY start_date DESC", (cid,)).fetchall()
+    portal_user = conn.execute("SELECT username FROM users WHERE party_id=?", (cid,)).fetchone()
     conn.close()
-    return render_template("customer_form.html", customer=customer, today=today_jalali())
+    return render_template("customer_form.html", customer=customer, buildings=buildings,
+                           contracts=contracts, portal_user=portal_user, today=today_jalali())
 
 
 @app.route("/customers/register", methods=["GET", "POST"])
@@ -765,6 +755,7 @@ def customer_register():
         amount = float(request.form.get("amount") or 0)
         visit_per_month = int(request.form.get("visit_per_month") or 1)
         first_service = normalize_jalali_date(request.form.get("first_service"), start_date)
+        insurance_expiry = normalize_jalali_date(request.form.get("insurance_expiry"))
         tech_id = request.form.get("technician_id") or None
         notes = (request.form.get("notes") or "").strip()
 
@@ -815,10 +806,10 @@ def customer_register():
                 try:
                     cur.execute(
                         """INSERT INTO contracts (contract_no, party_id, building_id, elevator_id, start_date, end_date,
-                           amount, visit_per_month, payment_type, status, description, created_at)
-                           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                           amount, visit_per_month, payment_type, status, description, insurance_expiry, created_at)
+                           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                         (final_contract_no, party_id, building_id, elev_id, start_date, end_date, amount,
-                         visit_per_month, "monthly", "active", notes, datetime.now().isoformat())
+                         visit_per_month, "monthly", "active", notes, insurance_expiry, datetime.now().isoformat())
                     )
                     break
                 except sqlite3.IntegrityError:
@@ -935,10 +926,10 @@ def payments_list():
         WHERE pay.pay_date LIKE ?
         ORDER BY pay.pay_date DESC
     """, (month + "%",)).fetchall()
-    # خلاصه بدهی هر مشتری (جمع سرویس‌های انجام‌شده - جمع پرداخت‌ها)
+    # خلاصه بدهی هر مشتری: مبلغ کل قراردادهای فعال منهای مجموع پرداخت‌ها (مشابه «لیست بدهکاران» TLift)
     debts = conn.execute("""
         SELECT p.id, p.name, p.phone,
-               COALESCE((SELECT SUM(amount) FROM appointments a WHERE a.party_id=p.id AND a.is_done=1), 0) as total_service,
+               COALESCE((SELECT SUM(amount) FROM contracts c WHERE c.party_id=p.id AND c.status='active'), 0) as total_service,
                COALESCE((SELECT SUM(amount) FROM payments pay WHERE pay.party_id=p.id), 0) as total_paid
         FROM parties p
         WHERE p.party_type IN ('customer','both') AND p.is_active=1
@@ -955,6 +946,7 @@ def payments_list():
             "total_paid": d["total_paid"] or 0,
             "balance": balance
         })
+    debt_list.sort(key=lambda x: x["balance"], reverse=True)
     return render_template("payments.html", payments=pays, debts=debt_list, customers=customers, month=month, today=today_jalali())
 
 @app.route("/payments/add", methods=["POST"])
@@ -1006,6 +998,15 @@ def elev_dashboard():
         WHERE v.status='planned' AND v.planned_date < ?
         ORDER BY v.planned_date LIMIT 30
     """, (today,)).fetchall()
+    insurance_expiring = conn.execute("""
+        SELECT c.*, p.name as customer_name, b.name as building_name, e.code as elev_code
+        FROM contracts c
+        LEFT JOIN parties p ON p.id=c.party_id
+        LEFT JOIN buildings b ON b.id=c.building_id
+        LEFT JOIN elevators e ON e.id=c.elevator_id
+        WHERE c.status='active' AND c.insurance_expiry IS NOT NULL AND c.insurance_expiry != ''
+        ORDER BY c.insurance_expiry LIMIT 20
+    """).fetchall()
     open_faults = conn.execute("""
         SELECT f.*, e.code as elev_code, e.name as elev_name
         FROM faults f
@@ -1021,6 +1022,7 @@ def elev_dashboard():
         "open_faults": conn.execute("SELECT COUNT(*) FROM faults WHERE status IN ('open','dispatched')").fetchone()[0],
         "overdue": len(overdue_visits),
         "expiring_soon": len(expiring),
+        "insurance_expiring": len(insurance_expiring),
         "done_this_month": conn.execute(
             "SELECT COUNT(*) FROM service_visits WHERE status='done' AND substr(visit_date,1,7)=?",
             (current_month_jalali(),)
@@ -1082,7 +1084,7 @@ def elev_dashboard():
     conn.close()
     return render_template("elev_dashboard.html", stats=stats, expiring=expiring,
                            overdue_visits=overdue_visits, open_faults=open_faults, today=today,
-                           chart_data=chart_data, team=team)
+                           chart_data=chart_data, team=team, insurance_expiring=insurance_expiring)
 
 @app.route("/elevators/complexes")
 @login_required
@@ -1128,11 +1130,10 @@ def elev_building_add():
     conn = get_connection()
     if request.method == "POST":
         conn.execute(
-            "INSERT INTO buildings (complex_id,code,name,address,floors,units,party_id,notes,region,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO buildings (complex_id,code,name,address,floors,units,party_id,notes,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
             (request.form.get("complex_id") or None, request.form.get("code"), request.form.get("name"),
              request.form.get("address"), int(request.form.get("floors") or 0), int(request.form.get("units") or 0),
-             request.form.get("party_id") or None, request.form.get("notes"),
-             request.form.get("region") or None, datetime.now().isoformat())
+             request.form.get("party_id") or None, request.form.get("notes"), datetime.now().isoformat())
         )
         conn.commit(); conn.close()
         flash("ساختمان ثبت شد.", "success")
@@ -1696,225 +1697,143 @@ def tech_visit_report(vid):
     return render_template("tech_visit_report.html", visit=visit, checklist=SERVICE_CHECKLIST, today=today_jalali())
 
 
+# ==================== پرتال مشتری / مدیر ساختمان ====================
+# مشابه «اپلیکیشن مشتریان» و «اپلیکیشن مدیر ساختمان» در TLift: مشتری با حساب
+# جداگانه وارد می‌شود و فقط اطلاعات ساختمان/قرارداد/سرویس/بدهی خودش را می‌بیند،
+# می‌تواند خرابی اعلام کند و به سرویس انجام‌شده امتیاز بدهد.
 
-# ==================== مدیریت سرویس (فیلتر، قطعات، چاپ چک‌لیست) ====================
+@app.route("/portal")
+@customer_required
+def portal_home():
+    pid = session["party_id"]
+    conn = get_connection()
+    party = conn.execute("SELECT * FROM parties WHERE id=?", (pid,)).fetchone()
+    buildings = conn.execute("SELECT * FROM buildings WHERE party_id=?", (pid,)).fetchall()
+    contracts = conn.execute("""
+        SELECT c.*, e.code as elev_code, b.name as building_name
+        FROM contracts c
+        LEFT JOIN elevators e ON e.id = c.elevator_id
+        LEFT JOIN buildings b ON b.id = c.building_id
+        WHERE c.party_id=? ORDER BY c.status='active' DESC, c.end_date
+    """, (pid,)).fetchall()
+    total_contract = sum(c["amount"] or 0 for c in contracts)
+    total_paid = conn.execute("SELECT COALESCE(SUM(amount),0) FROM payments WHERE party_id=?", (pid,)).fetchone()[0]
+    debt = total_contract - total_paid
 
-@app.route("/elevators/services")
-@login_required
-def elev_services():
-    """جستجو و مدیریت سرویس‌های انجام‌شده و انجام‌نشده"""
-    status = (request.args.get("status") or "all").strip()
-    tech_id = request.args.get("tech_id") or ""
-    region = (request.args.get("region") or "").strip()
-    date_from = (request.args.get("date_from") or "").strip()
-    date_to = (request.args.get("date_to") or "").strip()
-    q = (request.args.get("q") or "").strip()
-
-    sql = """
-        SELECT v.*, e.code as elev_code, e.name as elev_name,
-               b.name as building_name, b.address as building_address, b.region as region,
-               p.name as customer_name, p.phone as customer_phone,
-               t.name as tech_name, c.contract_no
+    upcoming = conn.execute("""
+        SELECT v.*, e.code as elev_code, b.name as building_name
         FROM service_visits v
+        LEFT JOIN contracts c ON c.id = v.contract_id
         LEFT JOIN elevators e ON e.id = v.elevator_id
         LEFT JOIN buildings b ON b.id = e.building_id
-        LEFT JOIN contracts c ON c.id = v.contract_id
-        LEFT JOIN parties p ON p.id = COALESCE(c.party_id, b.party_id)
-        LEFT JOIN technicians t ON t.id = v.technician_id
-        WHERE 1=1
-    """
-    params = []
-    if status == "done":
-        sql += " AND v.status='done'"
-    elif status == "pending":
-        sql += " AND v.status='planned'"
-    if tech_id:
-        sql += " AND v.technician_id=?"
-        params.append(int(tech_id))
-    if region:
-        sql += " AND b.region LIKE ?"
-        params.append(f"%{region}%")
-    if date_from:
-        sql += " AND COALESCE(v.visit_date, v.planned_date) >= ?"
-        params.append(date_from)
-    if date_to:
-        sql += " AND COALESCE(v.visit_date, v.planned_date) <= ?"
-        params.append(date_to)
-    if q:
-        sql += " AND (e.code LIKE ? OR b.name LIKE ? OR p.name LIKE ? OR c.contract_no LIKE ?)"
-        params.extend([f"%{q}%"] * 4)
-    sql += " ORDER BY COALESCE(v.visit_date, v.planned_date) DESC LIMIT 300"
-
-    conn = get_connection()
-    rows = conn.execute(sql, params).fetchall()
-    techs = conn.execute("SELECT id, name FROM technicians WHERE is_active=1 ORDER BY name").fetchall()
-    regions = conn.execute(
-        "SELECT DISTINCT region FROM buildings WHERE region IS NOT NULL AND region!='' ORDER BY region"
-    ).fetchall()
-    conn.close()
-    return render_template(
-        "elev_services.html",
-        rows=rows, techs=techs, regions=regions,
-        status=status, tech_id=tech_id, region=region,
-        date_from=date_from, date_to=date_to, q=q, today=today_jalali(),
-    )
-
-
-@app.route("/elevators/services/<int:vid>/assign", methods=["POST"])
-@login_required
-def elev_service_assign(vid):
-    """تغییر سرویس‌کار"""
-    tech_id = request.form.get("technician_id") or None
-    if tech_id == "":
-        tech_id = None
-    conn = get_connection()
-    conn.execute("UPDATE service_visits SET technician_id=? WHERE id=?", (tech_id, vid))
-    conn.commit()
-    conn.close()
-    flash("سرویس‌کار به‌روزرسانی شد.", "success")
-    return redirect(request.referrer or url_for("elev_services"))
-
-
-@app.route("/elevators/services/<int:vid>/date", methods=["POST"])
-@login_required
-def elev_service_date(vid):
-    """تغییر تاریخ سرویس"""
-    new_date = normalize_jalali_date(request.form.get("new_date"), today_jalali())
-    conn = get_connection()
-    row = conn.execute("SELECT status FROM service_visits WHERE id=?", (vid,)).fetchone()
-    if row and row["status"] == "done":
-        conn.execute("UPDATE service_visits SET visit_date=? WHERE id=?", (new_date, vid))
-    else:
-        conn.execute("UPDATE service_visits SET planned_date=? WHERE id=?", (new_date, vid))
-    conn.commit()
-    conn.close()
-    flash("تاریخ سرویس تغییر کرد.", "success")
-    return redirect(request.referrer or url_for("elev_services"))
-
-
-@app.route("/elevators/services/<int:vid>", methods=["GET", "POST"])
-@login_required
-def elev_service_detail(vid):
-    """جزئیات سرویس: قطعات، اجرت، ایاب‌وذهاب، تخفیف، یادآوری بعدی، اعلان"""
-    conn = get_connection()
-    visit = conn.execute("""
-        SELECT v.*, e.code as elev_code, e.name as elev_name,
-               b.name as building_name, b.address as building_address, b.region as region,
-               p.name as customer_name, p.phone as customer_phone,
-               t.name as tech_name, c.contract_no
+        WHERE c.party_id=? AND v.status='planned'
+        ORDER BY v.planned_date LIMIT 10
+    """, (pid,)).fetchall()
+    recent_done = conn.execute("""
+        SELECT v.*, e.code as elev_code, b.name as building_name
         FROM service_visits v
-        LEFT JOIN elevators e ON e.id=v.elevator_id
-        LEFT JOIN buildings b ON b.id=e.building_id
-        LEFT JOIN contracts c ON c.id=v.contract_id
-        LEFT JOIN parties p ON p.id=COALESCE(c.party_id, b.party_id)
-        LEFT JOIN technicians t ON t.id=v.technician_id
-        WHERE v.id=?
-    """, (vid,)).fetchone()
-    if not visit:
-        conn.close()
-        flash("سرویس یافت نشد.", "danger")
-        return redirect(url_for("elev_services"))
+        LEFT JOIN contracts c ON c.id = v.contract_id
+        LEFT JOIN elevators e ON e.id = v.elevator_id
+        LEFT JOIN buildings b ON b.id = e.building_id
+        WHERE c.party_id=? AND v.status='done'
+        ORDER BY v.visit_date DESC LIMIT 10
+    """, (pid,)).fetchall()
+    faults = conn.execute("""
+        SELECT f.*, e.code as elev_code
+        FROM faults f LEFT JOIN elevators e ON e.id = f.elevator_id
+        WHERE e.building_id IN (SELECT id FROM buildings WHERE party_id=?)
+        ORDER BY f.report_date DESC LIMIT 15
+    """, (pid,)).fetchall()
+    elevators = conn.execute("""
+        SELECT e.* FROM elevators e
+        JOIN buildings b ON b.id = e.building_id
+        WHERE b.party_id=?
+    """, (pid,)).fetchall()
+    conn.close()
+    return render_template("portal_home.html", party=party, buildings=buildings, contracts=contracts,
+                           debt=debt, total_paid=total_paid, upcoming=upcoming, recent_done=recent_done,
+                           faults=faults, elevators=elevators, today=today_jalali())
 
-    if request.method == "POST":
-        action = request.form.get("action") or "save"
-        if action == "save_costs":
-            labor = float(request.form.get("labor_cost") or 0)
-            transport = float(request.form.get("transport_cost") or 0)
-            discount = float(request.form.get("discount_amount") or 0)
-            next_rem = (request.form.get("next_reminder") or "").strip() or None
-            rem_note = (request.form.get("reminder_note") or "").strip()
+@app.route("/portal/fault/add", methods=["POST"])
+@customer_required
+def portal_fault_add():
+    pid = session["party_id"]
+    elevator_id = request.form.get("elevator_id")
+    description = (request.form.get("description") or "").strip()
+    conn = get_connection()
+    owns = conn.execute("""
+        SELECT e.id FROM elevators e JOIN buildings b ON b.id=e.building_id
+        WHERE e.id=? AND b.party_id=?
+    """, (elevator_id, pid)).fetchone()
+    if not owns or not description:
+        conn.close()
+        flash("آسانسور نامعتبر یا شرح خرابی خالی است.", "danger")
+        return redirect(url_for("portal_home"))
+    conn.execute(
+        "INSERT INTO faults (elevator_id, report_date, description, priority, status, created_at) VALUES (?,?,?,?,?,?)",
+        (elevator_id, today_jalali(), description, "normal", "open", datetime.now().isoformat())
+    )
+    conn.commit()
+    conn.close()
+    flash("خرابی با موفقیت اعلام شد و در صف بررسی قرار گرفت.", "success")
+    return redirect(url_for("portal_home"))
+
+@app.route("/portal/rate/<int:vid>", methods=["POST"])
+@customer_required
+def portal_rate_visit(vid):
+    pid = session["party_id"]
+    try:
+        rating = int(request.form.get("rating") or 0)
+    except ValueError:
+        rating = 0
+    rating = max(1, min(5, rating)) if rating else None
+    comment = (request.form.get("rating_comment") or "").strip()
+    conn = get_connection()
+    owns = conn.execute("""
+        SELECT v.id FROM service_visits v
+        LEFT JOIN contracts c ON c.id = v.contract_id
+        WHERE v.id=? AND c.party_id=?
+    """, (vid, pid)).fetchone()
+    if owns and rating:
+        conn.execute("UPDATE service_visits SET rating=?, rating_comment=? WHERE id=?", (rating, comment, vid))
+        conn.commit()
+        flash("امتیاز شما ثبت شد. سپاسگزاریم.", "success")
+    else:
+        flash("امکان ثبت امتیاز برای این سرویس وجود ندارد.", "danger")
+    conn.close()
+    return redirect(url_for("portal_home"))
+
+@app.route("/customers/<int:cid>/portal-access", methods=["POST"])
+@admin_required
+def customer_portal_access(cid):
+    """ایجاد یا بازنشانی حساب پرتال برای یک کارفرما (شبیه اپ مشتری/مدیر ساختمان TLift)"""
+    conn = get_connection()
+    party = conn.execute("SELECT * FROM parties WHERE id=?", (cid,)).fetchone()
+    if not party:
+        conn.close()
+        flash("کارفرما یافت نشد.", "danger")
+        return redirect(url_for("customers"))
+
+    existing = conn.execute("SELECT id FROM users WHERE party_id=?", (cid,)).fetchone()
+    new_password = secrets.token_hex(4)  # ۸ کاراکتر ساده برای اعلام به مشتری
+    username = f"c{cid}_{re.sub(r'[^a-zA-Z0-9]', '', (party['phone'] or party['name'])[-6:] or str(cid))}".lower()
+    if existing:
+        conn.execute("UPDATE users SET password=? WHERE id=?", (generate_password_hash(new_password), existing["id"]))
+        conn.commit()
+        conn.close()
+        flash(f"رمز پرتال بازنشانی شد. نام کاربری: {username} — رمز جدید: {new_password}", "success")
+    else:
+        try:
             conn.execute(
-                """UPDATE service_visits SET labor_cost=?, transport_cost=?, discount_amount=?,
-                   next_reminder=?, reminder_note=? WHERE id=?""",
-                (labor, transport, discount, next_rem, rem_note, vid)
+                "INSERT INTO users (username, password, full_name, role, party_id) VALUES (?,?,?,?,?)",
+                (username, generate_password_hash(new_password), party["name"], "customer", cid)
             )
             conn.commit()
-            flash("هزینه‌ها و یادآوری ذخیره شد.", "success")
-        elif action == "add_part":
-            part_name = (request.form.get("part_name") or "").strip()
-            qty = float(request.form.get("qty") or 1)
-            unit_price = float(request.form.get("unit_price") or 0)
-            product_id = request.form.get("product_id") or None
-            if product_id == "":
-                product_id = None
-            if product_id and not part_name:
-                pr = conn.execute("SELECT name, sell_price FROM products WHERE id=?", (product_id,)).fetchone()
-                if pr:
-                    part_name = pr["name"]
-                    if not unit_price:
-                        unit_price = pr["sell_price"] or 0
-            if part_name:
-                amount = qty * unit_price
-                conn.execute(
-                    """INSERT INTO visit_parts (visit_id, product_id, part_name, qty, unit_price, amount)
-                       VALUES (?,?,?,?,?,?)""",
-                    (vid, product_id, part_name, qty, unit_price, amount)
-                )
-                if product_id:
-                    conn.execute("UPDATE products SET stock_qty = stock_qty - ? WHERE id=?", (qty, product_id))
-                conn.commit()
-                flash("قطعه ثبت شد.", "success")
-        elif action == "notify":
-            msg = (request.form.get("message") or "").strip()
-            recipient = (request.form.get("recipient") or visit["customer_phone"] or visit["customer_name"] or "").strip()
-            if msg:
-                conn.execute(
-                    """INSERT INTO service_notifications (visit_id, recipient, message, created_at, is_sent)
-                       VALUES (?,?,?,?,0)""",
-                    (vid, recipient, msg, datetime.now().isoformat())
-                )
-                conn.commit()
-                flash("اعلان ثبت شد (برای ارسال واقعی پیامک باید پنل SMS وصل شود).", "success")
+            flash(f"دسترسی پرتال ساخته شد. نام کاربری: {username} — رمز: {new_password} (به مشتری اطلاع دهید)", "success")
+        except sqlite3.IntegrityError:
+            flash("نام کاربری تکراری بود؛ دوباره تلاش کنید.", "danger")
         conn.close()
-        return redirect(url_for("elev_service_detail", vid=vid))
-
-    parts = conn.execute("SELECT * FROM visit_parts WHERE visit_id=? ORDER BY id", (vid,)).fetchall()
-    checklist = conn.execute("SELECT * FROM visit_checklist WHERE visit_id=? ORDER BY id", (vid,)).fetchall()
-    products = conn.execute("SELECT id, code, name, sell_price, stock_qty FROM products WHERE is_active=1 ORDER BY name").fetchall()
-    techs = conn.execute("SELECT id, name FROM technicians WHERE is_active=1 ORDER BY name").fetchall()
-    notifs = conn.execute(
-        "SELECT * FROM service_notifications WHERE visit_id=? ORDER BY id DESC LIMIT 10", (vid,)
-    ).fetchall()
-    parts_sum = sum((p["amount"] or 0) for p in parts)
-    labor = visit["labor_cost"] if "labor_cost" in visit.keys() else 0
-    transport = visit["transport_cost"] if "transport_cost" in visit.keys() else 0
-    discount = visit["discount_amount"] if "discount_amount" in visit.keys() else 0
-    total = (parts_sum or 0) + (labor or 0) + (transport or 0) - (discount or 0)
-    conn.close()
-    return render_template(
-        "elev_service_detail.html",
-        visit=visit, parts=parts, checklist=checklist, products=products,
-        techs=techs, notifs=notifs, parts_sum=parts_sum, total=total, today=today_jalali(),
-    )
-
-
-@app.route("/elevators/services/<int:vid>/checklist/print")
-@login_required
-def elev_checklist_print(vid):
-    """چاپ چک‌لیست سرویس"""
-    conn = get_connection()
-    visit = conn.execute("""
-        SELECT v.*, e.code as elev_code, e.name as elev_name,
-               b.name as building_name, b.address as building_address,
-               p.name as customer_name, t.name as tech_name
-        FROM service_visits v
-        LEFT JOIN elevators e ON e.id=v.elevator_id
-        LEFT JOIN buildings b ON b.id=e.building_id
-        LEFT JOIN contracts c ON c.id=v.contract_id
-        LEFT JOIN parties p ON p.id=COALESCE(c.party_id, b.party_id)
-        LEFT JOIN technicians t ON t.id=v.technician_id
-        WHERE v.id=?
-    """, (vid,)).fetchone()
-    if not visit:
-        conn.close()
-        abort(404)
-    checklist = conn.execute("SELECT * FROM visit_checklist WHERE visit_id=? ORDER BY id", (vid,)).fetchall()
-    if not checklist:
-        # چک‌لیست خالی: از استاندارد برای چاپ فرم خالی
-        checklist = [{"item_label": lab, "is_ok": None, "note": ""} for _, lab in SERVICE_CHECKLIST]
-    conn.close()
-    return render_template("elev_checklist_print.html", visit=visit, checklist=checklist, today=today_jalali())
-
+    return redirect(url_for("customer_edit", cid=cid))
 
 
 if __name__ == "__main__":

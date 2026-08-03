@@ -30,9 +30,15 @@
   🚫 <strong>{{ overdue_visits|length }}</strong> سرویس عقب‌افتاده دارید.
 </div>
 {% endif %}
+{% if insurance_expiring %}
+<div class="alert-banner" style="background:linear-gradient(90deg,#fef9c3,#fff7ed);border-color:#eab308;color:#854d0e;">
+  🛡️ <strong>{{ insurance_expiring|length }}</strong> قرارداد بیمه ثبت‌شده دارد — تاریخ‌های انقضا را در جدول پایین بررسی و برای تمدید با مشتری تماس بگیرید.
+</div>
+{% endif %}
 
 <div class="g-stats">
     <div class="g-card"><div class="ic">📄</div><div class="num">{{ stats.expiring_soon }}</div><div class="label">قراردادهای رو به انقضا</div></div>
+    <div class="g-card"><div class="ic">🛡️</div><div class="num">{{ stats.insurance_expiring }}</div><div class="label">بیمه‌های ثبت‌شده</div></div>
     <div class="g-card"><div class="ic">🛠️</div><div class="num">{{ stats.open_faults }}</div><div class="label">خرابی‌های باز</div></div>
     <div class="g-card"><div class="ic">✅</div><div class="num">{{ stats.done_this_month }}</div><div class="label">خدمات انجام‌شده این ماه</div></div>
     <div class="g-card"><div class="ic">🚫</div><div class="num">{{ stats.overdue }}</div><div class="label">سرویس‌های عقب‌افتاده</div></div>
@@ -95,6 +101,25 @@
         {% for c in expiring %}
         <tr><td>{{ c.contract_no }}</td><td>{{ c.customer_name or '—' }}</td><td>{{ c.building_name or '—' }}</td><td>{{ c.elev_code or '—' }}</td><td>{{ c.end_date }}</td><td class="text-left">{{ "{:,.0f}".format(c.amount or 0) }}</td></tr>
         {% else %}<tr><td colspan="6" style="text-align:center;">موردی نیست</td></tr>{% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3>🛡️ بیمه قراردادها</h3>
+    <table>
+        <thead><tr><th>شماره</th><th>مشتری</th><th>ساختمان</th><th>آسانسور</th><th>تاریخ انقضای بیمه</th></tr></thead>
+        <tbody>
+        {% for c in insurance_expiring %}
+        <tr>
+            <td>{{ c.contract_no }}</td><td>{{ c.customer_name or '—' }}</td><td>{{ c.building_name or '—' }}</td><td>{{ c.elev_code or '—' }}</td>
+            <td class="text-left">
+                {% if c.insurance_expiry < today %}
+                <span class="badge" style="background:#fadbd8;color:#922b21;">{{ c.insurance_expiry }} (منقضی)</span>
+                {% else %}{{ c.insurance_expiry }}{% endif %}
+            </td>
+        </tr>
+        {% else %}<tr><td colspan="5" style="text-align:center;">بیمه‌ای ثبت نشده.</td></tr>{% endfor %}
         </tbody>
     </table>
 </div>

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}پرتال مشتری | {{ party.name }}{% endblock %}
+{% block page_title %}<strong>خوش آمدید، {{ party.name }}</strong>{% endblock %}
+{% block extra_css %}
+<style>
+    .star-row { display:flex; gap:4px; direction:ltr; }
+    .star-row input { display:none; }
+    .star-row label { font-size:1.4rem; color:#ddd; cursor:pointer; }
+    .star-row input:checked ~ label,
+    .star-row label:hover, .star-row label:hover ~ label { color:#f5a623; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="g-stats">
+    <div class="g-card"><div class="ic">🏢</div><div class="num">{{ buildings|length }}</div><div class="label">ساختمان</div></div>
+    <div class="g-card"><div class="ic">📄</div><div class="num">{{ contracts|length }}</div><div class="label">قرارداد</div></div>
+    <div class="g-card"><div class="ic">✅</div><div class="num">{{ upcoming|length }}</div><div class="label">سرویس پیش‌رو</div></div>
+    <div class="g-card" style="background:linear-gradient(135deg,#e74c3c,#c0392b);"><div class="ic">💰</div><div class="num">{{ "{:,.0f}".format(debt) }}</div><div class="label">مانده بدهی (ریال)</div></div>
+</div>
+
+<div class="card">
+    <h3>قراردادهای من</h3>
+    <div class="table-wrap">
+    <table>
+        <thead><tr><th>شماره</th><th>ساختمان</th><th>آسانسور</th><th>شروع</th><th>پایان</th><th>انقضای بیمه</th><th>مبلغ</th><th>وضعیت</th></tr></thead>
+        <tbody>
+        {% for c in contracts %}
+        <tr>
+            <td class="text-left">{{ c.contract_no }}</td>
+            <td>{{ c.building_name or '—' }}</td>
+            <td>{{ c.elev_code or '—' }}</td>
+            <td>{{ c.start_date }}</td>
+            <td>{{ c.end_date }}</td>
+            <td>{{ c.insurance_expiry or '—' }}</td>
+            <td class="text-left">{{ "{:,.0f}".format(c.amount or 0) }}</td>
+            <td>{% if c.status=='active' %}<span class="badge" style="background:#d5f5e3;color:#1e8449;">فعال</span>{% else %}<span class="badge">{{ c.status }}</span>{% endif %}</td>
+        </tr>
+        {% else %}<tr><td colspan="8" style="text-align:center;">قراردادی ثبت نشده.</td></tr>{% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<div class="card">
+    <h3>🛠️ اعلام خرابی جدید</h3>
+    <form method="post" action="{{ url_for('portal_fault_add') }}" class="form-row mobile-stack-form" style="align-items:end;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <label>آسانسور</label>
+            <select name="elevator_id" class="form-control" required>
+                <option value="">— انتخاب —</option>
+                {% for e in elevators %}<option value="{{ e.id }}">{{ e.code }} — {{ e.name or '' }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="flex:2;">
+            <label>شرح خرابی</label>
+            <input type="text" name="description" class="form-control" placeholder="مثلاً: آسانسور بین طبقات متوقف شده" required>
+        </div>
+        <div class="form-group">
+            <button type="submit" class="btn btn-danger">🚨 اعلام خرابی</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h3>سرویس‌های پیش‌رو</h3>
+    <table>
+        <thead><tr><th>تاریخ</th><th>ساختمان</th><th>آسانسور</th></tr></thead>
+        <tbody>
+        {% for v in upcoming %}
+        <tr><td>{{ v.planned_date }}</td><td>{{ v.building_name or '—' }}</td><td>{{ v.elev_code or '—' }}</td></tr>
+        {% else %}<tr><td colspan="3" style="text-align:center;">نوبتی برنامه‌ریزی نشده.</td></tr>{% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3>سرویس‌های اخیر انجام‌شده — امتیازدهی</h3>
+    {% for v in recent_done %}
+    <div class="tech-job">
+        <div class="tech-job-title">{{ v.building_name or '—' }} — {{ v.elev_code or '' }}</div>
+        <div class="tech-job-meta">تاریخ: {{ v.visit_date or v.planned_date }}{% if v.report_text %} · {{ v.report_text }}{% endif %}</div>
+        {% if v.rating %}
+        <div style="color:#f5a623;margin-top:6px;">{{ '★' * v.rating }}{{ '☆' * (5 - v.rating) }}{% if v.rating_comment %} — {{ v.rating_comment }}{% endif %}</div>
+        {% else %}
+        <form method="post" action="{{ url_for('portal_rate_visit', vid=v.id) }}" style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="star-row">
+                {% for n in [5,4,3,2,1] %}
+                <input type="radio" name="rating" value="{{ n }}" id="r{{ v.id }}_{{ n }}"><label for="r{{ v.id }}_{{ n }}">★</label>
+                {% endfor %}
+            </div>
+            <input type="text" name="rating_comment" class="form-control" style="max-width:220px;" placeholder="نظر شما (اختیاری)">
+            <button type="submit" class="btn btn-sm btn-primary">ثبت امتیاز</button>
+        </form>
+        {% endif %}
+    </div>
+    {% else %}
+    <p style="color:var(--muted);">سرویس انجام‌شده‌ای ثبت نشده.</p>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <h3>تاریخچه خرابی‌های اعلام‌شده</h3>
+    <table>
+        <thead><tr><th>تاریخ</th><th>آسانسور</th><th>شرح</th><th>وضعیت</th></tr></thead>
+        <tbody>
+        {% for f in faults %}
+        <tr><td>{{ f.report_date }}</td><td>{{ f.elev_code }}</td><td>{{ f.description }}</td><td>{{ f.status }}</td></tr>
+        {% else %}<tr><td colspan="4" style="text-align:center;">خرابی ثبت نشده.</td></tr>{% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
