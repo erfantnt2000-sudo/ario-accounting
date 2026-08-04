@@ -1,24 +1,71 @@
 {% extends "base.html" %}
 {% block title %}پنل سرویس‌کار{% endblock %}
-{% block page_title %}<strong>کارهای امروز</strong>{% endblock %}
+{% block page_title %}<strong>اپ سرویس‌کار</strong>{% endblock %}
+{% block extra_css %}
+<style>
+.tech-att { background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#fff; border-radius:14px; padding:16px; margin-bottom:14px; }
+.tech-att .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.tech-att .btn { flex:1; min-width:120px; }
+.tech-att .btn-light { background:#fff; color:#5b21b6; }
+.phone-link { display:inline-flex; align-items:center; gap:4px; background:#dbeafe; color:#1d4ed8; padding:6px 10px; border-radius:8px; font-size:0.85rem; margin-top:6px; }
+.map-link { display:inline-flex; background:#d1fae5; color:#065f46; padding:6px 10px; border-radius:8px; font-size:0.85rem; margin-top:6px; }
+.tech-job { background:#fff; border:1px solid var(--border,#e5e7eb); border-radius:14px; padding:14px; margin-bottom:10px; }
+.tech-job-title { font-weight:700; font-size:1rem; }
+.tech-job-meta { font-size:0.88rem; color:var(--muted,#6b7280); margin-top:6px; line-height:1.6; }
+.priority-critical { border-right:4px solid #dc2626; }
+.priority-high { border-right:4px solid #f59e0b; }
+.priority-normal { border-right:4px solid #3b82f6; }
+</style>
+{% endblock %}
 {% block content %}
+<div class="tech-att">
+  <div style="font-weight:700;">📅 {{ today }} — حضور و غیاب</div>
+  <div style="font-size:0.9rem;opacity:.95;margin-top:4px;">
+    {% if att and att.check_in %}ورود: {{ att.check_in }}{% else %}ورود ثبت نشده{% endif %}
+    {% if att and att.check_out %} · خروج: {{ att.check_out }}{% endif %}
+  </div>
+  <div class="row">
+    <form method="post" action="{{ url_for('tech_attendance') }}" style="flex:1;display:flex;" id="formIn">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="in">
+      <input type="hidden" name="gps_lat" class="gps_lat">
+      <input type="hidden" name="gps_lng" class="gps_lng">
+      <button type="submit" class="btn btn-light" style="width:100%;">✅ اعلام حضور</button>
+    </form>
+    <form method="post" action="{{ url_for('tech_attendance') }}" style="flex:1;display:flex;" id="formOut">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="out">
+      <input type="hidden" name="gps_lat" class="gps_lat">
+      <input type="hidden" name="gps_lng" class="gps_lng">
+      <button type="submit" class="btn btn-secondary" style="width:100%;background:rgba(255,255,255,.2);color:#fff;">🚪 اعلام خروج</button>
+    </form>
+  </div>
+  <p id="gpsStatus" style="font-size:0.75rem;margin-top:8px;opacity:.85;">📍 در حال دریافت موقعیت...</p>
+</div>
+
 <div class="stats">
-  <div class="stat-box"><div class="num">{{ visits|length }}</div><div class="label">سرویس باقی‌مانده</div></div>
+  <div class="stat-box"><div class="num">{{ visits|length }}</div><div class="label">سرویس امروز</div></div>
   <div class="stat-box"><div class="num">{{ faults|length }}</div><div class="label">خرابی باز</div></div>
-  <div class="stat-box"><div class="num">{{ done_today }}</div><div class="label">انجام‌شده امروز</div></div>
+  <div class="stat-box"><div class="num">{{ done_today }}</div><div class="label">انجام‌شده</div></div>
 </div>
 
 <div class="card">
-  <h2>🛠️ سرویس‌های امروز ({{ today }})</h2>
+  <h2>🛠️ برنامه روزانه سرویس ({{ today }})</h2>
   {% for v in visits %}
   <div class="tech-job">
     <div class="tech-job-title">{{ v.building_name or '—' }} — {{ v.elev_code }}</div>
     <div class="tech-job-meta">
       {% if v.customer_name %}کارفرما: {{ v.customer_name }}{% endif %}
-      {% if v.customer_phone %} · 📞 {{ v.customer_phone }}{% endif %}
       {% if v.building_address %}<br>📍 {{ v.building_address }}{% endif %}
+      {% if v.region %}<br>منطقه: {{ v.region }}{% endif %}
     </div>
-    <a class="btn btn-primary" style="width:100%;margin-top:10px;" href="{{ url_for('tech_visit_report', vid=v.id) }}">ثبت گزارش و چک‌لیست</a>
+    {% if v.customer_phone %}
+    <a class="phone-link" href="tel:{{ v.customer_phone }}">📞 تماس با کارفرما {{ v.customer_phone }}</a>
+    {% endif %}
+    {% if v.building_address %}
+    <a class="map-link" target="_blank" href="https://www.google.com/maps/search/?api=1&query={{ v.building_address|urlencode }}">🗺️ مسیر روی نقشه</a>
+    {% endif %}
+    <a class="btn btn-primary" style="width:100%;margin-top:10px;" href="{{ url_for('tech_visit_report', vid=v.id) }}">ثبت چک‌لیست سرویس و مدت کار</a>
   </div>
   {% else %}
   <p style="text-align:center;color:var(--muted);padding:16px;">سرویس برنامه‌ریزی‌شده برای امروز نیست.</p>
@@ -26,16 +73,43 @@
 </div>
 
 <div class="card">
-  <h2>⚠️ خرابی‌های باز / اعزام‌شده</h2>
+  <h2>⚠️ اعلام خرابی‌ها</h2>
   {% for f in faults %}
-  <div class="tech-job" style="border-right:4px solid {% if f.priority=='critical' %}#e74c3c{% elif f.priority=='high' %}#f39c12{% else %}#3282b8{% endif %};">
+  <div class="tech-job priority-{{ f.priority or 'normal' }}">
     <div class="tech-job-title">{{ f.elev_code }} — {{ f.building_name or '' }}</div>
-    <div class="tech-job-meta">{{ f.description }}<br>
-      <span class="badge">{{ f.priority }}</span> · {{ f.report_date }} {% if f.customer_phone %}· {{ f.customer_phone }}{% endif %}
+    <div class="tech-job-meta">
+      {{ f.description }}<br>
+      <span class="badge">{{ f.priority }}</span> · {{ f.report_date }} {% if f.report_time %}{{ f.report_time }}{% endif %}
+      {% if f.building_address %}<br>📍 {{ f.building_address }}{% endif %}
     </div>
+    {% if f.customer_phone or f.reporter_phone %}
+    <a class="phone-link" href="tel:{{ f.customer_phone or f.reporter_phone }}">📞 تماس {{ f.customer_phone or f.reporter_phone }}</a>
+    {% endif %}
+    {% if f.building_address %}
+    <a class="map-link" target="_blank" href="https://www.google.com/maps/search/?api=1&query={{ f.building_address|urlencode }}">🗺️ مسیر روی نقشه</a>
+    {% endif %}
+    <a class="btn btn-primary" style="width:100%;margin-top:10px;" href="{{ url_for('tech_fault_report', fid=f.id) }}">ثبت تعمیر / قطعات / مدت</a>
   </div>
   {% else %}
-  <p style="text-align:center;color:var(--muted);padding:12px;">خرابی بازی به شما محول نشده.</p>
+  <p style="text-align:center;color:var(--muted);padding:12px;">خرابی بازی نیست.</p>
   {% endfor %}
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function fillGps(){
+  if(!navigator.geolocation){
+    document.getElementById('gpsStatus').textContent='GPS در دسترس نیست';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(function(pos){
+    document.querySelectorAll('.gps_lat').forEach(function(el){ el.value = pos.coords.latitude; });
+    document.querySelectorAll('.gps_lng').forEach(function(el){ el.value = pos.coords.longitude; });
+    document.getElementById('gpsStatus').textContent = '📍 موقعیت آماده است';
+  }, function(){
+    document.getElementById('gpsStatus').textContent = 'موقعیت دریافت نشد (اختیاری)';
+  }, {enableHighAccuracy:true, timeout:10000});
+}
+fillGps();
+</script>
 {% endblock %}

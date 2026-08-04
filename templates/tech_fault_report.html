@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}گزارش تعمیر{% endblock %}
+{% block page_title %}<strong>گزارش تعمیر خرابی</strong>{% endblock %}
+{% block content %}
+<div class="card">
+  <h2 style="margin-top:0;">{{ fault.elev_code }} — {{ fault.building_name or '' }}</h2>
+  <p style="color:var(--muted);">{{ fault.description }}</p>
+  {% if fault.customer_phone or fault.reporter_phone %}
+  <a class="btn btn-secondary" href="tel:{{ fault.customer_phone or fault.reporter_phone }}">📞 تماس با کارفرما</a>
+  {% endif %}
+  {% if fault.building_address %}
+  <a class="btn btn-secondary" target="_blank" href="https://www.google.com/maps/search/?api=1&query={{ fault.building_address|urlencode }}">🗺️ نقشه</a>
+  {% endif %}
+</div>
+<div class="card">
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-group"><label>اقدام انجام‌شده *</label>
+      <textarea name="action_taken" class="form-control" rows="3" required placeholder="مثلاً: تعویض برد درب، تنظیم تیغه"></textarea>
+    </div>
+    <div class="form-group"><label>گزارش تکمیلی</label>
+      <textarea name="close_report" class="form-control" rows="2"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>مدت انجام (دقیقه)</label>
+        <input type="number" name="duration_minutes" class="form-control" value="30"></div>
+      <div class="form-group"><label>نیاز به تکنسین دیگر؟</label>
+        <select name="need_other_tech" class="form-control">
+          <option value="0">خیر — کار تمام شد</option>
+          <option value="1">بله — نیاز به کمک / ادامه</option>
+        </select>
+      </div>
+    </div>
+    <h3 style="margin:12px 0 8px;">قطعه مصرف‌شده</h3>
+    <div class="form-row">
+      <div class="form-group"><label>نام قطعه</label><input name="part_name" class="form-control"></div>
+      <div class="form-group"><label>تعداد</label><input type="number" step="0.01" name="qty" value="1" class="form-control"></div>
+      <div class="form-group"><label>قیمت واحد</label><input type="number" name="unit_price" value="0" class="form-control"></div>
+    </div>
+    {% if parts %}
+    <ul style="font-size:0.85rem;color:var(--muted);">
+      {% for p in parts %}<li>{{ p.part_name }} × {{ p.qty }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    <label class="chk-row"><input type="checkbox" name="close_now" value="1" checked> بستن خرابی پس از ثبت</label>
+    <button type="submit" class="btn btn-primary" style="width:100%;margin-top:12px;">ثبت گزارش تعمیر</button>
+    <a href="{{ url_for('tech_home') }}" class="btn btn-secondary" style="width:100%;margin-top:8px;">انصراف</a>
+  </form>
+</div>
+{% endblock %}

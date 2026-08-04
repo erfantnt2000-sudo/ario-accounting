@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}پروژه {{ proj.project_no }}{% endblock %}
+{% block page_title %}<strong>{{ proj.project_no }} — {{ (proj.notes or proj.project_no) }}</strong>{% endblock %}
+{% block content %}
+<div class="card">
+  <p>
+    مشتری: <b>{{ proj.customer_name or '—' }}</b> ·
+    ساختمان: <b>{{ proj.building_name or '—' }}</b> ·
+    آسانسور: <b>{{ proj.elev_code or '—' }}</b><br>
+    مرحله فعلی: <b>{{ stage_map.get(proj.stage, proj.stage) }}</b> ·
+    وضعیت: <b>{{ proj.status }}</b> ·
+    مبلغ: <b>{{ "{:,.0f}".format(proj.amount or 0) }}</b>
+  </p>
+  <a href="{{ url_for('elev_install_list') }}" class="btn btn-secondary">← لیست</a>
+</div>
+
+<div class="card">
+  <h3>مراحل نصب و راه‌اندازی</h3>
+  <div class="wizard" style="justify-content:flex-start;overflow-x:auto;">
+    {% for key, label in stages %}
+    <div class="step {% if proj.stage == key %}active{% endif %}">
+      <div class="circle">{{ loop.index }}</div>
+      <span>{{ label }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  <form method="post" style="margin-top:12px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="set_stage">
+    <div class="form-row">
+      <div class="form-group"><label>ثبت / تغییر مرحله</label>
+        <select name="stage_key" class="form-control">
+          {% for key, label in stages %}
+          <option value="{{ key }}" {% if proj.stage==key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group"><label>یادداشت</label>
+        <input name="note" class="form-control" placeholder="اختیاری"></div>
+    </div>
+    <button class="btn btn-primary">ثبت مرحله</button>
+  </form>
+  <ul style="margin-top:12px;font-size:0.9rem;">
+    {% for l in logs %}
+    <li>{{ l.created_at[:10] if l.created_at else '' }} — <b>{{ l.stage_label }}</b> {% if l.note %}· {{ l.note }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+</div>
+
+<div class="card">
+  <h3>قطعات مصرف‌شده در نصب</h3>
+  <table>
+    <thead><tr><th>قطعه</th><th>مرحله</th><th>تعداد</th><th>مبلغ</th></tr></thead>
+    <tbody>
+    {% for p in parts %}
+    <tr>
+      <td>{{ p.part_name }}</td>
+      <td>{{ '—' }}</td>
+      <td>{{ p.qty }}</td>
+      <td class="text-left">{{ "{:,.0f}".format(p.amount or 0) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" style="text-align:center;">قطعه‌ای نیست</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <form method="post" style="margin-top:12px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="add_part">
+    <div class="form-row">
+      <div class="form-group"><label>از انبار</label>
+        <select name="product_id" class="form-control">
+          <option value="">— دستی —</option>
+          {% for p in products %}<option value="{{ p.id }}">{{ p.code }} — {{ p.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group"><label>نام</label><input name="part_name" class="form-control"></div>
+      <div class="form-group"><label>تعداد</label><input type="number" step="0.01" name="qty" value="1" class="form-control"></div>
+      <div class="form-group"><label>قیمت</label><input type="number" name="unit_price" value="0" class="form-control"></div>
+      <div class="form-group"><label>مرحله</label>
+        <select name="stage_key" class="form-control">
+          {% for key, label in stages %}<option value="{{ key }}" {% if proj.stage==key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary">+ قطعه</button>
+  </form>
+</div>
+
+{% if proj.status == 'active' or proj.status == 'completed' %}
+<div class="card">
+  <h3>تبدیل به قرارداد سرویس</h3>
+  <p style="font-size:0.9rem;color:var(--muted);">پس از تحویل، پروژه نصب را به قرارداد نگهداری دوره‌ای تبدیل کنید.</p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="to_service">
+    <div class="form-row">
+      <div class="form-group"><label>پایان قرارداد سرویس</label>
+        <input name="service_end" class="form-control" placeholder="1405/12/29" required></div>
+      <div class="form-group"><label>مبلغ سالانه سرویس</label>
+        <input type="number" name="service_amount" class="form-control" value="0"></div>
+      <div class="form-group"><label>بازدید در ماه</label>
+        <input type="number" name="visit_per_month" class="form-control" value="1"></div>
+    </div>
+    <button class="btn btn-primary">ایجاد قرارداد سرویس</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

@@ -257,15 +257,6 @@ Env vars: `PORT`, `SECRET_KEY`, optional `RENDER=true`.
 - **Dead code removed**: `customer_add()` no longer duplicates `customer_register()`'s logic — it's now a one-line redirect to `/customers/register` (kept only so old links/bookmarks don't 404).
 - Re-verified with the same test-client smoke-test approach as before, this time asserting the specific bugs are fixed (duplicate-party count, contract_no collision under same-day resubmission, unpadded-date lookup, IDOR cross-technician access, insufficient-stock sale) in addition to the full GET/POST route sweep.
 
-## 11d. Changelog — critical login fix + TLift-inspired customer portal
-
-- **Critical fix — cross-worker session bug**: `Procfile` runs gunicorn with `--workers 2`. The previous per-process-random `SECRET_KEY` meant each worker signed session cookies with a *different* key, so requests routed to the "other" worker treated the user as logged out — the reported "login is broken / clicking menu items does nothing" bug. Fixed by generating the key once and persisting it to `data/.secret_key` (shared by all workers on the same host via disk); `SECRET_KEY` env var still takes priority when set (required for multi-host/multi-container deployments). Verified by simulating two separate OS processes and confirming a cookie from one is accepted by the other.
-- Added `.gitignore` (`data/*.db`, `data/.secret_key`, `__pycache__/`) so these never get committed.
-- **Customer / building-manager portal** (`/portal`, role `customer`), inspired by tlift.ir's separate customer/building-manager app: a customer logs in with their own account and sees only their own buildings, active contracts, insurance-expiry dates, debt balance, upcoming/recent services, and fault history — and can self-report a fault (`/portal/fault/add`) or rate a completed service 1–5 stars (`/portal/rate/<id>`), both ownership-checked (`customer_required` decorator + explicit `party_id` match query) so one customer cannot see or act on another's data. Admin creates/resets portal access from the customer-edit page (`/customers/<id>/portal-access`), which auto-generates a username/password shown once via flash message. `users.party_id` links a portal login to its `parties` row.
-- **Debtors report fixed**: `/payments` previously computed debt from the legacy generic `appointments` table (unused by the elevator workflow) instead of real `contracts`; now sums active contract amounts minus payments and sorts by balance descending, matching TLift's "لیست بدهکاران".
-- **Insurance-expiry tracking**: `contracts.insurance_expiry` (nullable date), settable from the customer-registration form, surfaced as a stat card + dedicated table + alert banner on `/elevators/dashboard`.
-- `service_visits.rating` / `rating_comment` columns added for the portal star-rating feature (all new columns added via try/except `ALTER TABLE` so existing databases migrate automatically on next startup).
-
 ## 12. Smoke test snippet (for AI after edits)
 
 ```python

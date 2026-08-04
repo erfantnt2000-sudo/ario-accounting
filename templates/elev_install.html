@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}نصب و راه‌اندازی{% endblock %}
+{% block page_title %}<strong>پروژه‌های نصب و راه‌اندازی</strong>{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+    <h2 style="margin:0;">لیست پروژه‌ها</h2>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <a class="btn btn-sm btn-primary" href="{{ url_for('elev_install_add') }}">+ پروژه جدید</a>
+      <a class="btn btn-sm btn-secondary" href="{{ url_for('elev_install_list', status='active') }}">فعال</a>
+      <a class="btn btn-sm btn-secondary" href="{{ url_for('elev_install_list', status='completed') }}">تمام‌شده</a>
+      <a class="btn btn-sm btn-secondary" href="{{ url_for('elev_install_list', status='converted') }}">تبدیل‌شده به سرویس</a>
+      <a class="btn btn-sm btn-secondary" href="{{ url_for('elev_install_list', status='all') }}">همه</a>
+    </div>
+  </div>
+  <div class="table-wrap" style="margin-top:12px;">
+  <table>
+    <thead><tr><th>شماره</th><th>عنوان</th><th>مشتری</th><th>ساختمان</th><th>آسانسور</th><th>مرحله فعلی</th><th>مبلغ</th><th>وضعیت</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.project_no }}</td>
+      <td>{{ r.title }}</td>
+      <td>{{ r.customer_name or '—' }}</td>
+      <td>{{ r.building_name or '—' }}</td>
+      <td>{{ r.elev_code or '—' }}</td>
+      <td>{{ stage_map.get(r.stage, r.stage) }}</td>
+      <td class="text-left">{{ "{:,.0f}".format(r.amount or 0) }}</td>
+      <td>{{ r.status }}</td>
+      <td><a class="btn btn-sm btn-primary" href="{{ url_for('elev_install_detail', pid=r.id) }}">مدیریت</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="9" style="text-align:center;">پروژه‌ای نیست — یک پروژه جدید بسازید</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endblock %}

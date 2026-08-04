@@ -195,17 +195,128 @@ def init_elevator_tables():
         pass
 
     # مهاجرت: ستون‌های امضای دیجیتال (کنواس) و عکس واقعی بازدید (base64) برای دیتابیس‌های قدیمی‌تر
+
     for col_sql in [
         "ALTER TABLE service_visits ADD COLUMN signature_data TEXT",
         "ALTER TABLE service_visits ADD COLUMN photo_data TEXT",
-        "ALTER TABLE service_visits ADD COLUMN rating INTEGER",
-        "ALTER TABLE service_visits ADD COLUMN rating_comment TEXT",
-        "ALTER TABLE contracts ADD COLUMN insurance_expiry TEXT",
+        "ALTER TABLE service_visits ADD COLUMN labor_cost REAL DEFAULT 0",
+        "ALTER TABLE service_visits ADD COLUMN transport_cost REAL DEFAULT 0",
+        "ALTER TABLE service_visits ADD COLUMN discount_amount REAL DEFAULT 0",
+        "ALTER TABLE service_visits ADD COLUMN next_reminder TEXT",
+        "ALTER TABLE service_visits ADD COLUMN reminder_note TEXT",
+        "ALTER TABLE buildings ADD COLUMN region TEXT",
     ]:
         try:
             c.execute(col_sql)
         except Exception:
-            pass  # ستون از قبل وجود دارد
+            pass
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS visit_parts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            visit_id INTEGER NOT NULL,
+            product_id INTEGER,
+            part_name TEXT,
+            qty REAL DEFAULT 1,
+            unit_price REAL DEFAULT 0,
+            amount REAL DEFAULT 0,
+            FOREIGN KEY (visit_id) REFERENCES service_visits(id),
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        )
+    """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS service_notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            visit_id INTEGER,
+            recipient TEXT,
+            message TEXT,
+            created_at TEXT,
+            is_sent INTEGER DEFAULT 0
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS fault_parts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fault_id INTEGER NOT NULL,
+            product_id INTEGER,
+            part_name TEXT,
+            qty REAL DEFAULT 1,
+            unit_price REAL DEFAULT 0,
+            amount REAL DEFAULT 0,
+            FOREIGN KEY (fault_id) REFERENCES faults(id),
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        )
+    """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS install_projects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_no TEXT,
+            party_id INTEGER,
+            building_id INTEGER,
+            elevator_id INTEGER,
+            address TEXT,
+            stage TEXT DEFAULT 'survey',
+            stage_label TEXT DEFAULT 'بازدید اولیه',
+            start_date TEXT,
+            end_date TEXT,
+            amount REAL DEFAULT 0,
+            status TEXT DEFAULT 'active',
+            notes TEXT,
+            created_at TEXT
+        )
+    """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS install_parts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            product_id INTEGER,
+            part_name TEXT,
+            qty REAL DEFAULT 1,
+            unit_price REAL DEFAULT 0,
+            amount REAL DEFAULT 0,
+            FOREIGN KEY (project_id) REFERENCES install_projects(id)
+        )
+    """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS install_stages_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            stage TEXT,
+            stage_label TEXT,
+            note TEXT,
+            created_at TEXT,
+            FOREIGN KEY (project_id) REFERENCES install_projects(id)
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS tech_attendance (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            technician_id INTEGER NOT NULL,
+            work_date TEXT NOT NULL,
+            check_in TEXT,
+            check_out TEXT,
+            gps_lat TEXT,
+            gps_lng TEXT,
+            note TEXT,
+            created_at TEXT
+        )
+    """)
+    for col_sql in [
+        "ALTER TABLE service_visits ADD COLUMN duration_minutes INTEGER DEFAULT 0",
+        "ALTER TABLE service_visits ADD COLUMN need_other_tech INTEGER DEFAULT 0",
+        "ALTER TABLE service_visits ADD COLUMN action_taken TEXT",
+        "ALTER TABLE service_visits ADD COLUMN start_time TEXT",
+        "ALTER TABLE service_visits ADD COLUMN end_time TEXT",
+        "ALTER TABLE faults ADD COLUMN action_taken TEXT",
+        "ALTER TABLE faults ADD COLUMN duration_minutes INTEGER DEFAULT 0",
+        "ALTER TABLE faults ADD COLUMN need_other_tech INTEGER DEFAULT 0",
+    ]:
+        try:
+            c.execute(col_sql)
+        except Exception:
+            pass
 
     conn.commit()
     conn.close()

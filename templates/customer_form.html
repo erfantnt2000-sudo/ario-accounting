@@ -31,49 +31,4 @@
         <a href="{{ url_for('customers') }}" class="btn btn-secondary">انصراف</a>
     </form>
 </div>
-
-{% if customer %}
-<div class="card">
-    <h3>🔑 دسترسی پرتال مشتری</h3>
-    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px;">
-        با فعال‌سازی این گزینه، این کارفرما می‌تواند خودش وارد شود و ساختمان، قرارداد، بدهی و سرویس‌های خودش را ببیند، خرابی اعلام کند و به سرویس‌ها امتیاز بدهد
-        (مشابه اپلیکیشن مشتری/مدیر ساختمان).
-    </p>
-    {% if portal_user %}
-    <p>نام کاربری فعلی: <strong class="text-left" style="direction:ltr;display:inline-block;">{{ portal_user.username }}</strong></p>
-    {% endif %}
-    <form method="post" action="{{ url_for('customer_portal_access', cid=customer.id) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-primary btn-sm">{% if portal_user %}🔄 بازنشانی رمز پرتال{% else %}➕ ایجاد دسترسی پرتال{% endif %}</button>
-    </form>
-</div>
-
-<div class="card">
-    <h3>🏢 ساختمان‌های این کارفرما</h3>
-    <table>
-        <thead><tr><th>نام ساختمان</th><th>آدرس</th></tr></thead>
-        <tbody>
-        {% for b in buildings %}
-        <tr><td>{{ b.name }}</td><td>{{ b.address or '—' }}</td></tr>
-        {% else %}<tr><td colspan="2" style="text-align:center;">ساختمانی ثبت نشده.</td></tr>{% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<div class="card">
-    <h3>📄 قراردادهای این کارفرما</h3>
-    <table>
-        <thead><tr><th>شماره</th><th>شروع</th><th>پایان</th><th>مبلغ</th><th>وضعیت</th></tr></thead>
-        <tbody>
-        {% for c in contracts %}
-        <tr>
-            <td class="text-left">{{ c.contract_no }}</td><td>{{ c.start_date }}</td><td>{{ c.end_date }}</td>
-            <td class="text-left">{{ "{:,.0f}".format(c.amount or 0) }}</td>
-            <td>{% if c.status=='active' %}<span class="badge" style="background:#d5f5e3;color:#1e8449;">فعال</span>{% else %}<span class="badge">{{ c.status }}</span>{% endif %}</td>
-        </tr>
-        {% else %}<tr><td colspan="5" style="text-align:center;">قراردادی ثبت نشده.</td></tr>{% endfor %}
-        </tbody>
-    </table>
-</div>
-{% endif %}
 {% endblock %}

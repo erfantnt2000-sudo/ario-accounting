@@ -532,20 +532,16 @@
                     <a href="{{ url_for('elev_faults') }}"><span class="ic">⚠️</span><span>خرابی‌ها</span></a>
                     <a href="{{ url_for('logout') }}"><span class="ic">🚪</span><span>خروج</span></a>
                 </div>
-                {% elif session.get('role') == 'customer' %}
-                <div class="nav-group">
-                    <div class="nav-group-title">پرتال مشتری</div>
-                    <a href="{{ url_for('portal_home') }}" class="{% if request.endpoint == 'portal_home' %}active{% endif %}"><span class="ic">🏠</span><span>پرتال من</span></a>
-                    <a href="{{ url_for('logout') }}"><span class="ic">🚪</span><span>خروج</span></a>
-                </div>
                 {% else %}
                 <div class="nav-group">
                     <div class="nav-group-title">عملیات روزانه</div>
                     <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}" title="داشبورد"><span class="ic">📊</span><span>داشبورد</span></a>
                     <a href="{{ url_for('elev_calendar') }}" class="{% if request.endpoint == 'elev_calendar' %}active{% endif %}" title="تقویم"><span class="ic">📅</span><span>تقویم</span></a>
+                    <a href="{{ url_for('elev_services') }}" class="{% if request.endpoint and 'elev_service' in request.endpoint %}active{% endif %}" title="مدیریت سرویس"><span class="ic">🛠️</span><span>مدیریت سرویس</span></a>
                     <a href="{{ url_for('elev_today') }}" class="{% if request.endpoint == 'elev_today' %}active{% endif %}" title="سرویس امروز"><span class="ic">✅</span><span>سرویس امروز</span></a>
                     <a href="{{ url_for('elev_missed') }}" class="{% if request.endpoint == 'elev_missed' %}active{% endif %}" title="عقب‌افتاده‌ها"><span class="ic">🚫</span><span>عقب‌افتاده‌ها</span></a>
                     <a href="{{ url_for('elev_faults') }}" class="{% if request.endpoint and 'fault' in request.endpoint %}active{% endif %}" title="خرابی و اعزام"><span class="ic">🛠️</span><span>خرابی و اعزام</span></a>
+                    <a href="{{ url_for('elev_install_list') }}" class="{% if request.endpoint and 'install' in request.endpoint %}active{% endif %}" title="نصب و راه‌اندازی"><span class="ic">🏗️</span><span>نصب</span></a>
                 </div>
                 <div class="nav-group">
                     <div class="nav-group-title">قرارداد و مشتری</div>

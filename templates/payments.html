@@ -1,117 +1,140 @@
 {% extends "base.html" %}
-{% block title %}پرداخت و بدهی | حسابداری آریو{% endblock %}
-{% block page_title %}<strong>پرداختی‌ها و بدهکاری مشتریان — {{ month }}</strong>{% endblock %}
+{% block title %}مالی — پرداخت و بدهی{% endblock %}
+{% block page_title %}<strong>پرداخت، بدهکاران و بستانکاران</strong>{% endblock %}
 {% block content %}
-
 <div class="card">
-    <h3>ثبت پرداخت جدید</h3>
-    <form method="post" action="{{ url_for('payment_add') }}" class="form-row" style="align-items:end;">
+  <h2 style="margin-top:0;">ثبت پرداخت</h2>
+  <form method="post" action="{{ url_for('payment_add') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="form-group">
-            <label>مشتری *</label>
-            <select name="party_id" class="form-control" required>
-                <option value="">— انتخاب —</option>
-                {% for c in customers %}
-                <option value="{{ c.id }}">{{ c.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="form-group">
-            <label>تاریخ</label>
-            <input type="text" name="pay_date" class="form-control" value="{{ today }}">
-        </div>
-        <div class="form-group">
-            <label>مبلغ (ریال) *</label>
-            <input type="number" name="amount" class="form-control" required min="1">
-        </div>
-        <div class="form-group">
-            <label>روش</label>
-            <select name="method" class="form-control">
-                <option value="cash">نقد</option>
-                <option value="card">کارت</option>
-                <option value="transfer">انتقال</option>
-                <option value="check">چک</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>توضیح</label>
-            <input type="text" name="description" class="form-control">
-        </div>
-        <div class="form-group">
-            <button type="submit" class="btn btn-success">ثبت پرداخت</button>
-        </div>
-    </form>
+    <div class="form-row">
+      <div class="form-group"><label>مشتری *</label>
+        <select name="party_id" class="form-control" required>
+          <option value="">— انتخاب —</option>
+          {% for c in customers %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group"><label>قرارداد (اختیاری)</label>
+        <select name="contract_id" class="form-control">
+          <option value="">—</option>
+          {% for c in contracts %}<option value="{{ c.id }}">{{ c.contract_no }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group"><label>تاریخ</label>
+        <input name="pay_date" class="form-control" value="{{ today }}"></div>
+      <div class="form-group"><label>مبلغ (ریال) *</label>
+        <input type="number" name="amount" class="form-control" required></div>
+      <div class="form-group"><label>نوع پرداخت</label>
+        <select name="method" class="form-control">
+          <option value="cash">نقد</option>
+          <option value="card">کارت</option>
+          <option value="transfer">انتقال</option>
+          <option value="check">چک</option>
+        </select>
+      </div>
+      <div class="form-group"><label>توضیح</label>
+        <input name="description" class="form-control"></div>
+    </div>
+    <button type="submit" class="btn btn-primary">ثبت پرداخت</button>
+  </form>
 </div>
 
 <div class="card">
-    <form method="get" style="margin-bottom:12px;">
-        <label>ماه: </label>
-        <input type="text" name="month" class="form-control" style="width:140px;display:inline-block;" value="{{ month }}">
-        <button type="submit" class="btn btn-primary btn-sm">فیلتر</button>
-    </form>
-    <h2>پرداخت‌های ماه {{ month }}</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>تاریخ</th>
-                <th>مشتری</th>
-                <th>مبلغ</th>
-                <th>روش</th>
-                <th>توضیح</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for p in payments %}
-            <tr>
-                <td>{{ p.pay_date }}</td>
-                <td>{{ p.customer_name }}</td>
-                <td class="text-left" style="color:#27ae60;font-weight:bold;">{{ "{:,.0f}".format(p.amount) }}</td>
-                <td>
-                    {% if p.method == 'cash' %}نقد
-                    {% elif p.method == 'card' %}کارت
-                    {% elif p.method == 'transfer' %}انتقال
-                    {% elif p.method == 'check' %}چک
-                    {% else %}{{ p.method }}{% endif %}
-                </td>
-                <td>{{ p.description or '—' }}</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="5" style="text-align:center;">پرداختی در این ماه ثبت نشده.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+  <h2>جستجوی پرداخت‌ها</h2>
+  <form method="get" class="form-row" style="align-items:end;">
+    <div class="form-group"><label>مشتری</label>
+      <select name="party_id" class="form-control">
+        <option value="">همه</option>
+        {% for c in customers %}<option value="{{ c.id }}" {% if party_id|string==c.id|string %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group"><label>از تاریخ</label>
+      <input name="date_from" class="form-control" value="{{ date_from }}"></div>
+    <div class="form-group"><label>تا تاریخ</label>
+      <input name="date_to" class="form-control" value="{{ date_to }}"></div>
+    <div class="form-group"><label>ماه (اگر از/تا خالی)</label>
+      <input name="month" class="form-control" value="{{ month }}" placeholder="1404/05"></div>
+    <div class="form-group"><label>نوع پرداخت</label>
+      <select name="method" class="form-control">
+        <option value="">همه</option>
+        <option value="cash" {% if method=='cash' %}selected{% endif %}>نقد</option>
+        <option value="card" {% if method=='card' %}selected{% endif %}>کارت</option>
+        <option value="transfer" {% if method=='transfer' %}selected{% endif %}>انتقال</option>
+        <option value="check" {% if method=='check' %}selected{% endif %}>چک</option>
+      </select>
+    </div>
+    <div class="form-group"><label>قرارداد</label>
+      <select name="contract_id" class="form-control">
+        <option value="">همه</option>
+        {% for c in contracts %}<option value="{{ c.id }}" {% if contract_id|string==c.id|string %}selected{% endif %}>{{ c.contract_no }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group"><button class="btn btn-primary">اعمال</button>
+      <a href="{{ url_for('payments_list') }}" class="btn btn-secondary">پاک</a></div>
+  </form>
+  <div class="table-wrap" style="margin-top:12px;">
+  <table>
+    <thead><tr><th>تاریخ</th><th>مشتری</th><th>مبلغ</th><th>روش</th><th>توضیح</th></tr></thead>
+    <tbody>
+    {% for p in payments %}
+    <tr>
+      <td>{{ p.pay_date }}</td>
+      <td>{{ p.customer_name }}</td>
+      <td class="text-left">{{ "{:,.0f}".format(p.amount or 0) }}</td>
+      <td>{% if p.method=='cash' %}نقد{% elif p.method=='card' %}کارت{% elif p.method=='transfer' %}انتقال{% elif p.method=='check' %}چک{% else %}{{ p.method }}{% endif %}</td>
+      <td>{{ p.description or '—' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" style="text-align:center;color:var(--muted);">پرداختی نیست</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
 </div>
 
-<div class="card">
-    <h2>وضعیت بدهکاری / بستانکاری مشتریان</h2>
-    <p style="color:#7f8c8d;font-size:0.9rem;margin-bottom:12px;">مانده = جمع سرویس‌های انجام‌شده − جمع پرداخت‌ها (مثبت = بدهکار مشتری)</p>
+<div class="form-row">
+  <div class="card" style="flex:1;">
+    <h2>لیست بدهکاران</h2>
+    <p style="font-size:0.85rem;color:var(--muted);">مانده = جمع قرارداد − جمع پرداخت · آخرین پرداخت</p>
+    <div class="table-wrap">
     <table>
-        <thead>
-            <tr>
-                <th>مشتری</th>
-                <th>تلفن</th>
-                <th>جمع سرویس</th>
-                <th>جمع پرداخت</th>
-                <th>مانده</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for d in debts %}
-            <tr>
-                <td><strong>{{ d.name }}</strong></td>
-                <td class="text-left">{{ d.phone or '—' }}</td>
-                <td class="text-left">{{ "{:,.0f}".format(d.total_service) }}</td>
-                <td class="text-left">{{ "{:,.0f}".format(d.total_paid) }}</td>
-                <td class="text-left" style="font-weight:bold;color:{% if d.balance > 0 %}#c0392b{% elif d.balance < 0 %}#27ae60{% else %}inherit{% endif %};">
-                    {% if d.balance > 0 %}بدهکار {{ "{:,.0f}".format(d.balance) }}
-                    {% elif d.balance < 0 %}بستانکار {{ "{:,.0f}".format(-d.balance) }}
-                    {% else %}تسویه{% endif %}
-                </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="5" style="text-align:center;">داده‌ای نیست.</td></tr>
-            {% endfor %}
-        </tbody>
+      <thead><tr><th>مشتری</th><th>تلفن</th><th>قرارداد</th><th>پرداخت</th><th>مانده</th><th>آخرین پرداخت</th></tr></thead>
+      <tbody>
+      {% for d in debts %}
+      <tr>
+        <td>{{ d.name }}</td>
+        <td>{{ d.phone or '—' }}</td>
+        <td class="text-left">{{ "{:,.0f}".format(d.total_service or 0) }}</td>
+        <td class="text-left">{{ "{:,.0f}".format(d.total_paid or 0) }}</td>
+        <td class="text-left" style="color:#dc2626;font-weight:700;">{{ "{:,.0f}".format(d.balance or 0) }}</td>
+        <td>{{ d.last_pay_date or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="text-align:center;">بدهکاری نیست</td></tr>
+      {% endfor %}
+      </tbody>
     </table>
+    </div>
+  </div>
+  <div class="card" style="flex:1;">
+    <h2>لیست بستانکاران</h2>
+    <p style="font-size:0.85rem;color:var(--muted);">پرداخت بیش از مبلغ قرارداد</p>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>مشتری</th><th>تلفن</th><th>پرداخت اضافه</th><th>آخرین پرداخت</th></tr></thead>
+      <tbody>
+      {% for d in creditors %}
+      <tr>
+        <td>{{ d.name }}</td>
+        <td>{{ d.phone or '—' }}</td>
+        <td class="text-left" style="color:#16a34a;font-weight:700;">{{ "{:,.0f}".format(-(d.balance or 0)) }}</td>
+        <td>{{ d.last_pay_date or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" style="text-align:center;">بستانکاری نیست</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
 </div>
 {% endblock %}

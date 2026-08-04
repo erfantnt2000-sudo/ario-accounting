@@ -10,6 +10,10 @@ from datetime import datetime
 import jdatetime
 from werkzeug.security import generate_password_hash
 
+# pbkdf2 سازگاری بهتری با نسخه‌های مختلف پایتون/ویندوز دارد (scrypt در بعضی محیط‌ها مشکل می‌سازد)
+def _hash_password(raw: str) -> str:
+    return generate_password_hash(str(raw), method="pbkdf2:sha256")
+
 # On Render (and most cloud hosts) the filesystem is ephemeral; use /tmp which is always writable.
 # Locally keep data next to the project.
 if os.environ.get("RENDER") or os.environ.get("PORT"):
@@ -138,14 +142,9 @@ def init_db():
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
             full_name TEXT,
-            role TEXT DEFAULT 'user',
-            party_id INTEGER
+            role TEXT DEFAULT 'user'
         )
     """)
-    try:
-        c.execute("ALTER TABLE users ADD COLUMN party_id INTEGER")
-    except Exception:
-        pass  # ستون از قبل وجود دارد (دیتابیس قدیمی‌تر)
 
     c.execute("""
         CREATE TABLE IF NOT EXISTS appointments (
@@ -207,23 +206,47 @@ def init_db():
             ("5201", "هزینه حقوق و دستمزد", "52", "expense"),
             ("5202", "هزینه اجاره", "52", "expense"),
             ("5203", "سایر هزینه‌ها", "52", "expense"),
+            ("213", "سایر بدهی‌های جاری", "21", "liability"),
+            ("21301", "مالیات بر ارزش افزوده", "213", "liability"),
+            ("4102", "درآمد خدمات سرویس آسانسور", "41", "revenue"),
         ]
         for code, name, parent, atype in sample_accounts:
             c.execute("INSERT INTO accounts (code, name, parent_code, account_type) VALUES (?, ?, ?, ?)", (code, name, parent, atype))
 
+    # اطمینان از وجود حساب‌های ضروری حتی در دیتابیس‌های قدیمی
+    for code, name, parent, atype in [
+        ("213", "سایر بدهی‌های جاری", "21", "liability"),
+        ("21301", "مالیات بر ارزش افزوده", "213", "liability"),
+        ("4102", "درآمد خدمات سرویس آسانسور", "41", "revenue"),
+    ]:
+        if not c.execute("SELECT 1 FROM accounts WHERE code=?", (code,)).fetchone():
+            c.execute(
+                "INSERT INTO accounts (code, name, parent_code, account_type) VALUES (?, ?, ?, ?)",
+                (code, name, parent, atype),
+            )
+
     c.execute("SELECT COUNT(*) FROM users")
     if c.fetchone()[0] == 0:
         c.execute("INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)",
-                   ("admin", generate_password_hash("admin"), "مدیر سیستم", "admin"))
+                   ("admin", _hash_password("admin"), "مدیر سیستم", "admin"))
         c.execute("INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)",
-                   ("tech", generate_password_hash("tech"), "سرویس‌کار نمونه", "technician"))
+                   ("tech", _hash_password("tech"), "سرویس‌کار نمونه", "technician"))
     else:
         # migrate any legacy plaintext passwords (از نسخه‌های قدیمی‌تر) به هش امن
         for row in c.execute("SELECT id, password FROM users").fetchall():
             pw = row["password"]
             if not (pw and (pw.startswith("pbkdf2:") or pw.startswith("scrypt:"))):
-                # رمز قبلی متنی بود؛ همان مقدار را هش می‌کنیم تا کاربر با همان رمز قبلی وارد شود
-                c.execute("UPDATE users SET password=? WHERE id=?", (generate_password_hash(pw), row["id"]))
+                c.execute("UPDATE users SET password=? WHERE id=?", (_hash_password(pw), row["id"]))
+        # اگر کاربر admin/tech وجود ندارد، بساز
+        for uname, raw, full, role in [
+            ("admin", "admin", "مدیر سیستم", "admin"),
+            ("tech", "tech", "سرویس‌کار نمونه", "technician"),
+        ]:
+            if not c.execute("SELECT 1 FROM users WHERE username=?", (uname,)).fetchone():
+                c.execute(
+                    "INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)",
+                    (uname, _hash_password(raw), full, role),
+                )
 
     c.execute("SELECT COUNT(*) FROM parties")
     if c.fetchone()[0] == 0:
@@ -262,6 +285,10 @@ def init_db():
                 c.execute("INSERT INTO appointments (party_id, appt_date, appt_time, service_type, description, is_done, amount, created_at) VALUES (?,?,?,?,?,?,?,?)",
                           (parties[3]["id"], yesterday, "10:00", "سرویس معمولی", "غایب", 0, 200000, datetime.now().isoformat()))
 
+    try:
+        c.execute("ALTER TABLE payments ADD COLUMN contract_id INTEGER")
+    except Exception:
+        pass
     conn.commit()
     conn.close()
     print("Database ready.")

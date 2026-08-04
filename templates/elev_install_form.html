@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}پروژه نصب جدید{% endblock %}
+{% block page_title %}<strong>ثبت پروژه نصب</strong>{% endblock %}
+{% block content %}
+<div class="card">
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <div class="form-group"><label>شماره پروژه</label>
+        <input name="project_no" class="form-control" placeholder="خالی = خودکار"></div>
+      <div class="form-group"><label>عنوان</label>
+        <input name="title" class="form-control" value="نصب آسانسور"></div>
+      <div class="form-group"><label>مشتری</label>
+        <select name="party_id" class="form-control">
+          <option value="">—</option>
+          {% for p in parties %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group"><label>ساختمان</label>
+        <select name="building_id" class="form-control">
+          <option value="">—</option>
+          {% for b in buildings %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group"><label>آسانسور</label>
+        <select name="elevator_id" class="form-control">
+          <option value="">—</option>
+          {% for e in elevators %}<option value="{{ e.id }}">{{ e.code }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group"><label>تاریخ شروع</label>
+        <input name="start_date" class="form-control" value="{{ today }}"></div>
+      <div class="form-group"><label>پایان پیش‌بینی</label>
+        <input name="expected_end" class="form-control"></div>
+      <div class="form-group"><label>مبلغ قرارداد نصب</label>
+        <input type="number" name="amount" class="form-control" value="0"></div>
+      <div class="form-group" style="grid-column:1/-1;"><label>آدرس / توضیحات</label>
+        <input name="address" class="form-control">
+        <input name="notes" class="form-control" style="margin-top:8px;" placeholder="یادداشت"></div>
+    </div>
+    <button class="btn btn-primary">ثبت پروژه</button>
+    <a href="{{ url_for('elev_install_list') }}" class="btn btn-secondary">انصراف</a>
+  </form>
+</div>
+{% endblock %}
